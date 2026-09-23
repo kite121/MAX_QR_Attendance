@@ -1,0 +1,822 @@
+% !TEX program = xelatex
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=18mm,headheight=15pt]{geometry}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{russian}
+\setotherlanguage{english}
+\setmainfont{Arial}
+\setsansfont{Arial}
+% Arial contains Cyrillic glyphs and keeps inline code readable in Russian text.
+\setmonofont{Arial}
+
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{multicol}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\usepackage{amssymb}
+\usepackage{needspace}
+\usepackage{lastpage}
+
+\definecolor{MaxPurple}{HTML}{641CF3}
+\definecolor{MaxBlue}{HTML}{0A84FF}
+\definecolor{MaxCyan}{HTML}{61D7E8}
+\definecolor{MaxPink}{HTML}{FF3B80}
+\definecolor{Ink}{HTML}{16181D}
+\definecolor{Muted}{HTML}{5E6673}
+\definecolor{Panel}{HTML}{F3F6FA}
+\definecolor{Line}{HTML}{DDE3EC}
+\definecolor{PZero}{HTML}{D92D20}
+\definecolor{POne}{HTML}{B54708}
+\definecolor{PTwo}{HTML}{1570EF}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=MaxPurple,
+  urlcolor=MaxBlue,
+  pdftitle={План проекта QR-посещаемости в MAX},
+  pdfauthor={Команда проекта}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{Muted}QR-посещаемость в MAX}
+\fancyhead[R]{\small\color{Muted}Рабочий план команды}
+\fancyfoot[L]{\small\color{Muted}Хакатон: образовательные решения}
+\fancyfoot[R]{\small\color{Muted}\thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\titleformat{\section}
+  {\Large\bfseries\color{Ink}}
+  {\colorbox{MaxPurple}{\textcolor{white}{\strut\thesection}}}
+  {0.65em}{}
+\titleformat{\subsection}
+  {\large\bfseries\color{Ink}}
+  {\thesubsection}{0.55em}{}
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{MaxPurple}}
+  {\thesubsubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{2.1ex plus .4ex}{1.1ex}
+\titlespacing*{\subsection}{0pt}{1.6ex plus .3ex}{0.7ex}
+
+\setlist[itemize]{leftmargin=1.55em,itemsep=0.18em,topsep=0.35em,parsep=0pt}
+\setlist[enumerate]{leftmargin=1.7em,itemsep=0.25em,topsep=0.35em}
+\newlist{tasklist}{itemize}{2}
+\setlist[tasklist]{label=$\square$,leftmargin=1.6em,itemsep=0.16em,topsep=0.3em,parsep=0pt}
+\setlist[tasklist,2]{label=$\circ$,leftmargin=1.5em}
+
+\newcommand{\PZero}{\textcolor{PZero}{\textbf{P0}}}
+\newcommand{\POne}{\textcolor{POne}{\textbf{P1}}}
+\newcommand{\PTwo}{\textcolor{PTwo}{\textbf{P2}}}
+\newcommand{\done}[1]{\textbf{Критерий готовности:} #1}
+\newcommand{\owner}[1]{\textcolor{Muted}{\textbf{Ответственный:} #1}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\newtcolorbox{summarybox}[1][]{
+  colback=Panel,
+  colframe=MaxPurple,
+  boxrule=0.9pt,
+  arc=2mm,
+  left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,
+  #1
+}
+\newtcolorbox{warningbox}[1][]{
+  colback=white,
+  colframe=MaxPink,
+  boxrule=0.9pt,
+  arc=2mm,
+  left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,
+  #1
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \pagecolor{MaxPurple}
+  \color{white}
+  \vspace*{18mm}
+  {\fontsize{15}{18}\selectfont ХАКАТОН \textbullet{} ОБРАЗОВАТЕЛЬНЫЕ РЕШЕНИЯ}\par
+  \vspace{22mm}
+  {\fontsize{34}{40}\selectfont\bfseries План проекта\\QR-посещаемости\\в MAX}\par
+  \vspace{8mm}
+  {\Large Полный командный backlog: от исследования проблемы до сдачи и защиты}\par
+  \vfill
+  \begin{tcolorbox}[colback=white,colframe=white,arc=3mm,boxrule=0pt]
+    \color{Ink}
+    \textbf{Назначение документа}\par
+    Единый рабочий план команды с приоритетами, ответственными, критериями готовности, требованиями к MVP, интеграции с MAX, безопасности, Docker, документации и презентации.
+  \end{tcolorbox}
+  \vspace{10mm}
+  {\large Версия: \today}\par
+\end{titlepage}
+\nopagecolor
+\color{Ink}
+
+\tableofcontents
+\newpage
+
+\section*{Как пользоваться документом}
+\addcontentsline{toc}{section}{Как пользоваться документом}
+
+\begin{summarybox}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{18mm}X}
+\PZero & Обязательно для допуска, рабочего MVP и воспроизводимой проверки.\\
+\POne & Важно для высокого балла и убедительного пилота.\\
+\PTwo & Делать только после стабильного основного сценария.\\
+$\square$ & Невыполненная задача. После завершения чекбокс можно отметить вручную.\\
+\end{tabularx}
+\end{summarybox}
+
+\begin{warningbox}
+\textbf{Главное правило проекта.} Пока полностью не работает путь
+\emph{«преподаватель запустил сессию $\rightarrow$ студент отметил присутствие $\rightarrow$ преподаватель получил итоговый список»}, команда не переходит к сложной аналитике, внешним интеграциям и платформенному бонусу.
+\end{warningbox}
+
+\section{Управление проектом}
+\owner{лидер команды}
+
+\subsection{Организация работы -- \PZero}
+\begin{tasklist}
+  \item Зафиксировать название команды.
+  \item Выбрать название продукта.
+  \item Проверить название и ник бота: после создания ник изменить нельзя.
+  \item Получить у организаторов токен MAX.
+  \item Найти точную дату и время дедлайна онлайн-этапа.
+  \item Создать Git-репозиторий.
+  \item Создать доску задач со статусами \code{Backlog / Ready / In progress / Review / Done}.
+  \item Назначить ответственного за каждое направление.
+  \item Определить правила code review.
+  \item Определить формат веток и коммитов.
+  \item Согласовать расписание общих проверок.
+  \item Зафиксировать критерии готовности MVP.
+  \item Назначить владельца финальной сборки и сдачи.
+  \item Создать реестр рисков.
+  \item Вести журнал продуктовых и технических решений.
+\end{tasklist}
+
+\subsection{Контрольные точки}
+\begin{enumerate}
+  \item Проблема подтверждена.
+  \item Сценарий утверждён.
+  \item Технический прототип MAX работает.
+  \item Основной сценарий проходит полностью.
+  \item Ошибки и пограничные состояния обработаны.
+  \item Docker и документация готовы.
+  \item Презентация и демонстрация отрепетированы.
+  \item Версия зафиксирована и отправлена.
+\end{enumerate}
+\done{у каждой задачи есть ответственный, срок, приоритет и проверяемый результат.}
+
+\section{Продуктовое исследование}
+\owner{product lead; в исследовании участвует вся команда}
+
+\subsection{Целевая аудитория -- \PZero}
+\begin{tasklist}
+  \item Выбрать одного основного пользователя.
+  \item Зафиксировать преподавателя как основной сегмент либо обосновать другой выбор.
+  \item Уточнить тип преподавателя: вуз, очные занятия, тип занятия, размер группы и частота занятий.
+  \item Описать студента как второго участника процесса.
+  \item Определить, кто принимает решение о внедрении: преподаватель, кафедра, деканат или IT-служба.
+  \item Определить первый возможный университет, факультет или кафедру для пилота.
+\end{tasklist}
+
+\subsection{Исследование проблемы -- \PZero}
+\begin{tasklist}
+  \item Провести интервью с преподавателями.
+  \item Провести короткие интервью со студентами.
+  \item Узнать, как посещаемость собирают сейчас.
+  \item Получить примеры журналов, таблиц или форм.
+  \item Измерить примерное время переклички.
+  \item Узнать, как часто возникают ошибки.
+  \item Узнать, куда затем переносятся результаты.
+  \item Узнать, какие способы обхода или обмана встречаются.
+  \item Определить основные неудобства преподавателя.
+  \item Определить основные неудобства студента.
+  \item Проверить потребность в истории посещений и экспорте.
+  \item Найти официальную статистику и надёжные источники.
+  \item Отделить подтверждённые факты от гипотез команды.
+\end{tasklist}
+
+\subsection{Формулировка проблемы -- \PZero}
+\begin{summarybox}
+\textbf{Шаблон:} [Пользователь] в ситуации [контекст] хочет [результат], но сталкивается с [барьером], из-за чего [последствие].
+
+\medskip
+\textbf{Рабочая формулировка:} преподаватель очного занятия хочет быстро получить достоверный список присутствующих, но вынужден проводить перекличку и вручную переносить результаты, из-за чего теряется учебное время и возникают ошибки.
+\end{summarybox}
+\begin{tasklist}
+  \item Подтвердить каждый элемент формулировки.
+  \item Определить главное последствие проблемы.
+  \item Зафиксировать, почему существующие способы недостаточны.
+  \item Объяснить, почему MAX подходит для решения.
+  \item Подготовить список источников.
+\end{tasklist}
+
+\subsection{Текущий и будущий процессы -- \PZero}
+\subsubsection{As Is}
+\begin{tasklist}
+  \item Описать создание списка группы, начало переклички и подтверждение присутствия.
+  \item Указать место фиксации результата и последующего переноса данных.
+  \item Найти ручные действия, ошибки и потери времени.
+  \item Указать сервисы, документы и участников процесса.
+  \item Описать права доступа к результатам.
+\end{tasklist}
+
+\subsubsection{To Be}
+\begin{tasklist}
+  \item Преподаватель открывает Mini App и выбирает группу.
+  \item Запускает сессию и получает временный QR.
+  \item Студент сканирует QR и открывает Mini App в MAX.
+  \item Backend проверяет пользователя, группу, токен и статус сессии.
+  \item Студент получает подтверждение.
+  \item Преподаватель видит обновляемый список.
+  \item Преподаватель завершает сессию и получает итоговый результат.
+\end{tasklist}
+
+\subsection{Ценность, гипотеза и метрики -- \PZero}
+\begin{tasklist}
+  \item Сформулировать ценность для преподавателя.
+  \item Сформулировать ценность для студента.
+  \item Сформулировать ценность для университета.
+  \item Подготовить продуктовую гипотезу.
+  \item Выбрать метрики эффекта.
+  \item Зафиксировать исходные значения, если их удалось измерить.
+  \item Определить способ проверки метрик на пилоте.
+\end{tasklist}
+\begin{summarybox}
+\textbf{Рабочая гипотеза:} если преподаватель сможет запускать QR-сессию посещаемости внутри MAX, он будет получать готовый список присутствующих быстрее и с меньшим количеством ручных действий.
+\end{summarybox}
+
+\section{Формирование MVP}
+\owner{product lead и технический лидер}
+
+\subsection{Must Have -- \PZero}
+\begin{multicols}{2}
+\begin{tasklist}
+  \item Авторизация через MAX.
+  \item Роли преподавателя и студента.
+  \item Тестовая учебная группа.
+  \item Привязка студента к группе.
+  \item Создание занятия или сессии.
+  \item Запуск сбора посещаемости.
+  \item Создание временного QR.
+  \item Открытие Mini App через QR.
+  \item Проверка QR-токена.
+  \item Проверка пользователя MAX.
+  \item Проверка принадлежности к группе.
+  \item Запрет повторной отметки.
+  \item Успешная отметка присутствия.
+  \item Результат для студента.
+  \item Список присутствующих преподавателю.
+  \item Завершение сессии.
+  \item Обработка основных ошибок.
+  \item Работа в MAX Mobile и MAX Web.
+\end{tasklist}
+\end{multicols}
+
+\subsection{Should Have -- \POne}
+\begin{tasklist}
+  \item Автоматическая смена QR.
+  \item Ручное добавление или удаление отметки преподавателем.
+  \item Журнал ручных изменений.
+  \item Экспорт CSV.
+  \item История занятий.
+  \item Повторное открытие активной сессии.
+  \item Отображение количества присутствующих.
+  \item Состояния «опоздал» и «присутствует».
+  \item Защита от слишком частых запросов.
+  \item Понятная инструкция для первого запуска.
+\end{tasklist}
+
+\subsection{Could Have -- \PTwo}
+\begin{tasklist}
+  \item Аналитика по занятиям.
+  \item Импорт студентов из CSV.
+  \item Уведомления преподавателю.
+  \item Интеграция с групповым чатом MAX.
+  \item Полноценная административная панель.
+  \item Дополнительная нативная возможность MAX для платформенного бонуса.
+\end{tasklist}
+
+\subsection{Won't Have в хакатонной версии}
+\begin{tasklist}
+  \item Зафиксировать список функций, которые команда сознательно не делает.
+  \item Не добавлять AI только ради презентации.
+  \item Не делать распознавание лиц и сложную геолокационную проверку.
+  \item Не делать микросервисы.
+  \item Не подключать реальную LMS без гарантированного доступа.
+  \item Не строить систему управления целым университетом.
+\end{tasklist}
+\done{один пользовательский сценарий полностью даёт преподавателю итоговый список посещаемости.}
+
+\section{UX/UI}
+\owner{frontend/UX-участник}
+
+\subsection{Пользовательские пути -- \PZero}
+\begin{tasklist}
+  \item Новый и повторно вошедший преподаватель.
+  \item Запуск, просмотр и завершение сессии.
+  \item Новый студент и успешная отметка.
+  \item Повторная отметка.
+  \item Просроченный QR.
+  \item Студент не найден в группе.
+  \item Сессия уже закрыта.
+\end{tasklist}
+
+\subsection{Макеты -- \PZero}
+\begin{tasklist}
+  \item Экран загрузки и главный экран преподавателя.
+  \item Выбор группы и создание занятия.
+  \item Экран QR и живой список присутствующих.
+  \item Подтверждение завершения и итоговый список.
+  \item Экран студента до подтверждения и после успеха.
+  \item Полный набор экранов ошибок.
+\end{tasklist}
+
+\subsection{Состояния и требования -- \PZero}
+\begin{tasklist}
+  \item Для каждого экрана предусмотреть loading, empty, success, error и disabled.
+  \item Обработать отсутствие соединения, повторную попытку, истёкшую сессию и недостаточные права.
+  \item Использовать MAX UI и адаптировать интерфейс под мобильный экран.
+  \item Проверить веб-версию.
+  \item Убрать лишние шаги и сделать основные действия понятными без пояснений.
+  \item Сделать крупный читаемый QR и показать время до его обновления.
+  \item Давать понятную обратную связь после каждого действия.
+  \item Проверить контрастность, размеры элементов и доступность обозначений.
+\end{tasklist}
+
+\subsection{UX-проверка -- \POne}
+\begin{tasklist}
+  \item Собрать кликабельный прототип.
+  \item Провести 3--5 UX-тестов.
+  \item Зафиксировать проблемы и исправить критичные тупики.
+\end{tasklist}
+
+\section{Техническая архитектура}
+\owner{технический лидер}
+
+\subsection{Архитектурные задачи -- \PZero}
+\begin{tasklist}
+  \item Утвердить стек: React, TypeScript, Vite, MAX UI, MAX Bridge, Python, FastAPI, PostgreSQL и Docker Compose.
+  \item Выбрать структуру monorepo и разделить frontend, backend и инфраструктуру.
+  \item Нарисовать архитектурную схему и описать ответственность компонентов.
+  \item Спроектировать модель данных и REST API.
+  \item Спроектировать интеграцию с MAX и формат ошибок API.
+  \item Определить механизм авторизации.
+  \item Определить жизненный цикл сессии посещаемости и QR-токена.
+  \item Выбрать обновление списка: polling или WebSocket.
+  \item Определить хранение времени и часового пояса.
+  \item Определить стратегию миграций и журналирования.
+  \item Зафиксировать ключевые решения в коротких ADR.
+\end{tasklist}
+
+\subsection{Основные сущности}
+\begin{center}
+\begin{tabularx}{\textwidth}{*{3}{>{\ttfamily}X}}
+users & teachers & students\\
+groups & enrollments & lessons\\
+attendance\_sessions & qr\_tokens & checkins\\
+audit\_log & &\\
+\end{tabularx}
+\end{center}
+\done{любой участник способен объяснить компоненты, связи, движение данных и причины выбора технологий.}
+
+\section{Интеграция с MAX}
+\owner{frontend/MAX-разработчик}
+
+\subsection{Обязательная интеграция -- \PZero}
+\begin{tasklist}
+  \item Получить и безопасно сохранить токен.
+  \item Создать бота с окончательным ником и настроить команду \code{/start}.
+  \item Подключить Mini App к боту и развернуть его по HTTPS.
+  \item Подключить MAX Bridge.
+  \item Получать \code{window.WebApp.initData} и \code{start\_param}.
+  \item Создавать deep link \code{?startapp=<token>}.
+  \item Передавать \code{initData} backend-серверу.
+  \item Реализовать серверную HMAC-проверку и проверку свежести \code{auth\_date}.
+  \item Проверить запуск по QR, MAX Mobile и MAX Web.
+  \item Проверить повторный запуск.
+  \item Настроить webhook, если бот получает события.
+  \item Предусмотреть режим локальной разработки вне MAX.
+  \item Не использовать \code{initDataUnsafe} как доказательство личности.
+\end{tasklist}
+
+\subsection{Дополнительное использование платформы -- \POne}
+\begin{tasklist}
+  \item Добавить полезное сообщение бота после \code{/start}.
+  \item Добавить кнопку открытия Mini App и инструкцию преподавателю.
+  \item Проверить нативную обратную связь MAX.
+  \item Определить возможность для платформенного бонуса.
+  \item Описать расширенное использование MAX в README и презентации.
+\end{tasklist}
+
+\section{Backend}
+\owner{backend-разработчик}
+
+\subsection{Базовая инфраструктура -- \PZero}
+\begin{tasklist}
+  \item Создать FastAPI-приложение и подключить PostgreSQL.
+  \item Настроить SQLAlchemy и Alembic.
+  \item Добавить конфигурацию окружения, health-check и единый формат ошибок.
+  \item Добавить структурированные логи.
+  \item Создать начальные миграции и тестовые данные.
+\end{tasklist}
+
+\subsection{Авторизация -- \PZero}
+\begin{tasklist}
+  \item Создать endpoint авторизации через MAX.
+  \item Проверять подпись \code{initData} и срок действия.
+  \item Создавать или обновлять пользователя и определять его роль.
+  \item Выдавать короткоживущую пользовательскую сессию.
+  \item Проверять права для каждого endpoint.
+\end{tasklist}
+
+\subsection{Группы -- \PZero}
+\begin{tasklist}
+  \item Создать тестовую группу.
+  \item Получать группы преподавателя и участников группы.
+  \item Привязывать студентов к группе.
+  \item Проверять доступ преподавателя к группе.
+\end{tasklist}
+
+\subsection{Посещаемость -- \PZero}
+\begin{tasklist}
+  \item Создание и получение активной сессии.
+  \item Создание QR-токена, хранение его хеша и срока действия.
+  \item Ротация QR и проверка статуса сессии.
+  \item Endpoint check-in и атомарная запись отметки.
+  \item Запрет дублей через ограничение БД.
+  \item Проверка принадлежности студента к группе.
+  \item Получение списка отметившихся.
+  \item Закрытие сессии и запрет отметок после закрытия.
+\end{tasklist}
+
+\subsection{Дополнительные функции -- \POne}
+\begin{tasklist}
+  \item Ручная корректировка и audit log.
+  \item Экспорт CSV и история занятий.
+  \item Сводная статистика и импорт CSV.
+\end{tasklist}
+
+\subsection{Контракт API -- \PZero}
+\begin{tasklist}
+  \item Зафиксировать OpenAPI 3.0/3.1.
+  \item Проверить status codes и обязательные поля.
+  \item Добавить примеры запросов и ответов.
+  \item Подготовить тестовые роли и файл \code{DATA-API.yaml}.
+\end{tasklist}
+
+\section{Frontend}
+\owner{frontend-разработчик}
+
+\subsection{Общая часть -- \PZero}
+\begin{tasklist}
+  \item Создать React/TypeScript-проект.
+  \item Подключить MAX UI, MAX Bridge и API-клиент.
+  \item Настроить авторизацию, маршрутизацию по ролям и адаптивную вёрстку.
+  \item Добавить обработку загрузки и ошибок.
+\end{tasklist}
+
+\subsection{Интерфейс преподавателя -- \PZero}
+\begin{tasklist}
+  \item Список и выбор групп.
+  \item Запуск сессии.
+  \item QR с таймером и автоматическим обновлением.
+  \item Обновляемый список и счётчик присутствующих.
+  \item Завершение сессии и итоговый экран.
+\end{tasklist}
+
+\subsection{Интерфейс студента -- \PZero}
+\begin{tasklist}
+  \item Чтение \code{start\_param} и получение информации о сессии.
+  \item Отображение занятия и подтверждение отметки.
+  \item Экран успеха.
+  \item Состояния повтора, просроченного QR, закрытой сессии и отсутствия в группе.
+  \item Восстановление после ошибки соединения.
+\end{tasklist}
+
+\subsection{Дополнения -- \POne}
+\begin{tasklist}
+  \item Ручное исправление списка и экспорт.
+  \item История занятий.
+  \item Улучшенная анимация и обратная связь.
+  \item Первый onboarding преподавателя.
+\end{tasklist}
+
+\section{Безопасность и персональные данные}
+\owner{backend/DevOps; проверяет вся команда}
+
+\subsection{Обязательные меры -- \PZero}
+\begin{tasklist}
+  \item Создать модель угроз и определить минимально необходимый набор данных.
+  \item Не запрашивать номер телефона без необходимости.
+  \item Использовать синтетические данные на демонстрации.
+  \item Разграничить права преподавателя и студента.
+  \item Валидировать MAX \code{initData} на backend и проверять \code{auth\_date}.
+  \item Использовать криптографически случайные QR-токены.
+  \item Не помещать персональные данные в QR и хранить только хеш токена.
+  \item Ограничить срок действия QR и запретить повторные отметки.
+  \item Добавить rate limiting и валидацию входных данных.
+  \item Не логировать токены и персональные данные.
+  \item Не хранить секреты в коде; добавить \code{.env} в \code{.gitignore} и создать \code{.env.example}.
+  \item Проверить историю Git на секреты.
+  \item Зафиксировать версии и проверить лицензии зависимостей.
+  \item Описать порядок удаления и срок хранения данных.
+  \item Подготовить политику обработки данных для прототипа.
+  \item Указать соблюдение 152-ФЗ как условие реального внедрения.
+\end{tasklist}
+
+\subsection{Антифрод -- \POne}
+\begin{tasklist}
+  \item Оценить риск пересылки QR.
+  \item Ввести ротацию QR и ограничить временное окно.
+  \item Показывать преподавателю подозрительные события.
+  \item Добавить журнал исправлений.
+  \item Не использовать IP или геолокацию как единственное доказательство присутствия.
+  \item Честно описать ограничения защиты.
+\end{tasklist}
+
+\section{Тестирование}
+\owner{QA/DevOps; разработчики пишут автоматические тесты}
+
+\subsection{Unit-тесты -- \PZero}
+\begin{tasklist}
+  \item Проверка подписи MAX и срока действия.
+  \item Генерация и истечение QR-токена.
+  \item Проверка ролей, дублей, закрытой сессии и принадлежности к группе.
+\end{tasklist}
+
+\subsection{Интеграционные тесты -- \PZero}
+\begin{tasklist}
+  \item Авторизация MAX $\rightarrow$ пользователь.
+  \item Создание сессии $\rightarrow$ QR.
+  \item QR $\rightarrow$ check-in $\rightarrow$ обновлённый список.
+  \item Завершение $\rightarrow$ запрет новых отметок.
+  \item Миграции на пустой базе и повторный запуск приложения.
+\end{tasklist}
+
+\subsection{End-to-end -- \PZero}
+\begin{tasklist}
+  \item Полный путь преподавателя и полный путь студента.
+  \item Два разных студента и повторная отметка.
+  \item Просроченный QR, неизвестный студент и закрытая сессия.
+  \item Потеря соединения, ошибка backend и восстановление после ошибки.
+\end{tasklist}
+
+\subsection{Совместимость -- \PZero}
+\begin{tasklist}
+  \item MAX Android, MAX iOS при наличии и MAX Web.
+  \item Разные размеры экрана и медленное соединение.
+  \item Повторное открытие Mini App.
+\end{tasklist}
+
+\subsection{Нагрузочная проверка -- \POne}
+\begin{tasklist}
+  \item Одновременная отметка всей группы.
+  \item 30--100 запросов check-in за короткий период.
+  \item Отсутствие дублей при параллельных запросах.
+  \item Измерение времени ответа API и поведения PostgreSQL.
+\end{tasklist}
+\done{основной сценарий стабильно проходит несколько раз подряд без ручного восстановления среды.}
+
+\section{Docker, DevOps и развёртывание}
+\owner{DevOps/QA}
+
+\subsection{Воспроизводимый запуск -- \PZero}
+\begin{tasklist}
+  \item Dockerfile для frontend и backend.
+  \item PostgreSQL и все локальные компоненты в \code{compose.yaml}.
+  \item \code{.dockerignore}, \code{.env.example} и зафиксированные версии образов.
+  \item Health-check компонентов, миграции и тестовые данные при запуске.
+  \item Одна команда запуска и одна команда остановки.
+  \item Проверка запуска на чистой машине и повторного запуска.
+  \item Проверка сборки менее чем за 5 минут без загрузки базовых образов.
+  \item HTTPS, домен, постоянно доступные API и Mini App.
+  \item Логи, минимальный мониторинг и резервная копия БД.
+  \item Проверка отсутствия секретов в образах.
+\end{tasklist}
+
+\subsection{Автоматизация -- \POne}
+\begin{tasklist}
+  \item CI для тестов и Docker build.
+  \item Автоматический deploy.
+  \item Проверка зависимостей и secret scanning.
+\end{tasklist}
+
+\section{Техническая документация}
+\owner{технический лидер; проверяет участник без контекста}
+
+\subsection{README -- \PZero}
+\begin{tasklist}
+  \item Назначение проекта, решаемая проблема и основной сценарий.
+  \item Архитектура и состав компонентов.
+  \item Требования к окружению, переменные и порты.
+  \item Одна команда запуска, команда остановки и повторный запуск.
+  \item Настройка MAX и работа с тестовыми данными.
+  \item Тестовые роли и пошаговый сценарий проверки.
+  \item Ожидаемый результат.
+  \item Внешние сервисы, описание данных и известные ограничения.
+  \item Безопасность, секреты и лицензии.
+\end{tasklist}
+
+\subsection{API-документация -- \PZero}
+\begin{tasklist}
+  \item \code{openapi.yaml} или \code{openapi.json} версии 3.0/3.1.
+  \item Примеры запросов, ответов, ошибок и status codes.
+  \item Тестовые аккаунты и тестовый JSON/CSV.
+  \item \code{DATA-API.yaml} и перечень обязательных проверок API.
+\end{tasklist}
+
+\section{Пилот и масштабирование}
+\owner{product lead}
+
+\subsection{Пилот -- \POne}
+\begin{tasklist}
+  \item Выбрать первый вуз, факультет или кафедру.
+  \item Определить количество преподавателей, групп и продолжительность пилота.
+  \item Описать подключение пользователей и обучение преподавателя.
+  \item Определить необходимые данные, владельца процесса и канал поддержки.
+  \item Выбрать метрики и критерии успеха.
+  \item Описать действия после успешного и отрицательного результата.
+\end{tasklist}
+
+\subsection{Масштабирование -- \POne}
+\begin{tasklist}
+  \item Определить ядро продукта и переменную часть.
+  \item Выбрать следующий факультет и следующий университет.
+  \item Описать интеграции, адаптацию модели данных и организационные ресурсы.
+  \item Описать юридические ограничения и риски тиражирования.
+  \item Составить реалистичную последовательность масштабирования.
+\end{tasklist}
+
+\section{Презентация}
+\owner{product lead; участвует вся команда}
+
+\subsection{Служебный слайд -- \PZero}
+\begin{tasklist}
+  \item Ссылка на работающий продукт в MAX.
+  \item Ссылка на Git-репозиторий и commit hash.
+  \item HTTPS-адрес API.
+  \item Тестовые аккаунты и проверочные переменные окружения.
+  \item Краткий порядок проверки.
+\end{tasklist}
+
+\subsection{Продуктовая часть -- \PZero}
+\begin{tasklist}
+  \item Название, команда и executive summary.
+  \item Целевая аудитория и подтверждённая проблема.
+  \item Источники и результаты интервью.
+  \item As Is, To Be, решение и основной сценарий.
+  \item Ценность, метрики и преимущество перед текущим процессом.
+\end{tasklist}
+
+\subsection{Техническая часть -- \PZero}
+\begin{tasklist}
+  \item Архитектура, интеграция с MAX и модель данных.
+  \item Технологии, безопасность и типы используемых данных.
+  \item Ограничения MVP и известные риски.
+\end{tasklist}
+
+\subsection{Развитие -- \POne}
+\begin{tasklist}
+  \item План пилота, масштабирование и необходимые интеграции.
+  \item Следующие шаги и условия внедрения.
+\end{tasklist}
+
+\section{Демонстрация и защита}
+\owner{лидер презентации; участвует вся команда}
+
+\subsection{Подготовка -- \PZero}
+\begin{tasklist}
+  \item Написать сценарий демонстрации.
+  \item Подготовить роли преподавателя и студента, тестовую группу и устройства.
+  \item Подготовить запасную сеть и резервное видео демонстрации.
+  \item Проверить ссылки, MAX и API перед выступлением.
+  \item Подготовить короткое выступление и распределить слайды.
+  \item Подготовить ответы на вопросы.
+  \item Отрепетировать защиту с таймером и провести стресс-репетицию.
+  \item Убедиться, что каждый участник понимает весь продукт.
+  \item Разделять в ответах факты, гипотезы и ограничения.
+\end{tasklist}
+
+\subsection{Вероятные вопросы жюри}
+\begin{itemize}
+  \item Почему нельзя использовать обычную форму или таблицу?
+  \item Что мешает студенту отправить QR другу?
+  \item Почему выбран MAX и кто основной пользователь?
+  \item Чем подтверждена проблема и как измеряется результат?
+  \item Какие персональные данные хранит система?
+  \item Как решение интегрируется с университетом и работает при плохом интернете?
+  \item Почему выбран этот стек и как система масштабируется?
+  \item Где провести первый пилот и что не вошло в MVP?
+\end{itemize}
+
+\section{Финальная сдача}
+\owner{лидер команды и DevOps}
+
+\subsection{Финальный чек-лист -- \PZero}
+\begin{tasklist}
+  \item Провести финальный code review и удалить отладочный код.
+  \item Проверить Git на секреты и зависимости на допустимые лицензии.
+  \item Запустить все тесты и собрать Docker с нуля.
+  \item Пройти основной сценарий строго по README.
+  \item Проверить OpenAPI, DATA-API, тестовые аккаунты и тестовые данные.
+  \item Проверить публичный HTTPS, бота, Mini App, мобильную и веб-версию.
+  \item Создать финальный commit и зафиксировать commit hash.
+  \item Поставить Git tag.
+  \item Создать архив при необходимости и рассчитать контрольную сумму.
+  \item Экспортировать презентацию в PDF.
+  \item Проверить служебный слайд и все ссылки.
+  \item Отправить материалы и больше не изменять зафиксированную версию.
+\end{tasklist}
+
+\section{Распределение задач на четырёх участников}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{11mm}>{\raggedright\arraybackslash}p{42mm}>{\raggedright\arraybackslash}p{52mm}>{\raggedright\arraybackslash}p{52mm}}
+\toprule
+\textbf{№} & \textbf{Роль} & \textbf{Основная зона} & \textbf{Дополнительная зона}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{№} & \textbf{Роль} & \textbf{Основная зона} & \textbf{Дополнительная зона}\\
+\midrule
+\endhead
+1 & Product Lead & Исследование, ценность, пилот, масштабирование & Презентация и защита\\
+2 & Frontend/MAX & React, MAX UI, MAX Bridge, UX & Интеграционные тесты\\
+3 & Backend & FastAPI, PostgreSQL, check-in, безопасность & OpenAPI и DATA-API\\
+4 & QA/DevOps & Docker, deploy, тестирование, документация & Демонстрация и финальная сборка\\
+\bottomrule
+\end{longtable}
+
+\begin{summarybox}
+Code review, проверка основного сценария, подготовка к вопросам и понимание продукта являются общей ответственностью команды. Разделение ролей не должно создавать изолированные зоны знаний.
+\end{summarybox}
+
+\section{Последовательность выполнения}
+
+\begin{center}
+\begin{tcolorbox}[width=0.82\textwidth,colback=Panel,colframe=MaxCyan,arc=3mm,boxrule=1pt]
+\centering
+\textbf{Исследование проблемы}\\[1mm]
+$\downarrow$\\
+\textbf{Целевая аудитория и метрики}\\[1mm]
+$\downarrow$\\
+\textbf{As Is / To Be}\\[1mm]
+$\downarrow$\\
+\textbf{Границы MVP}\\[1mm]
+$\downarrow$\\
+\textbf{UX-прототип}\\[1mm]
+$\downarrow$\\
+\textbf{Технический spike MAX}\\[1mm]
+$\downarrow$\\
+\textbf{Backend + Frontend}\\[1mm]
+$\downarrow$\\
+\textbf{Интеграция основного сценария}\\[1mm]
+$\downarrow$\\
+\textbf{Безопасность и обработка ошибок}\\[1mm]
+$\downarrow$\\
+\textbf{Тестирование}\\[1mm]
+$\downarrow$\\
+\textbf{Docker и документация}\\[1mm]
+$\downarrow$\\
+\textbf{Презентация и демонстрация}\\[1mm]
+$\downarrow$\\
+\textbf{Фиксация версии и сдача}
+\end{tcolorbox}
+\end{center}
+
+\clearpage
+\section{Шаблон еженедельного статуса}
+
+\begin{longtable}{>{\bfseries\raggedright\arraybackslash}p{48mm}>{\raggedright\arraybackslash}p{112mm}}
+\toprule
+Период & \rule{0pt}{9mm}\\
+Главная цель недели & \rule{0pt}{9mm}\\
+Готово & \rule{0pt}{9mm}\\
+В работе & \rule{0pt}{9mm}\\
+Заблокировано & \rule{0pt}{9mm}\\
+Риски & \rule{0pt}{9mm}\\
+Решения команды & \rule{0pt}{9mm}\\
+Метрика недели & \rule{0pt}{9mm}\\
+Демонстрируемый результат & \rule{0pt}{9mm}\\
+Следующая контрольная точка & \rule{0pt}{9mm}\\
+\bottomrule
+\end{longtable}
+
+\vfill
+\begin{center}
+\color{Muted}\small
+Документ является рабочим чек-листом. Перед сдачей требования следует повторно сверить с актуальными правилами хакатона и документацией MAX.
+\end{center}
+
+\end{document}

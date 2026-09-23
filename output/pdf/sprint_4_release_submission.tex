@@ -1,0 +1,170 @@
+% !TEX program = xelatex
+\documentclass[11pt,a4paper]{article}
+\usepackage[a4paper,margin=18mm,headheight=15pt]{geometry}
+\usepackage{fontspec}\usepackage{polyglossia}\setdefaultlanguage{russian}\setotherlanguage{english}\setmainfont{Arial}\setsansfont{Arial}\setmonofont{Arial}
+\usepackage{microtype,enumitem,array,booktabs,tabularx,xcolor,hyperref,fancyhdr,titlesec,tcolorbox,amssymb,lastpage}
+\definecolor{MaxPurple}{HTML}{641CF3}\definecolor{MaxBlue}{HTML}{0A84FF}\definecolor{Ink}{HTML}{16181D}\definecolor{Muted}{HTML}{5E6673}\definecolor{Panel}{HTML}{F3F6FA}\definecolor{Alert}{HTML}{D92D20}
+\hypersetup{colorlinks=true,linkcolor=MaxPurple,urlcolor=MaxBlue,pdftitle={Спринт 4 - релиз и отправка},pdfauthor={Команда QR-посещаемости в MAX}}
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{\small\color{Muted}QR-посещаемость в MAX}\fancyhead[R]{\small\color{Muted}Спринт 4 \textbullet{} 28-29 сентября}\fancyfoot[L]{\small\color{Muted}План команды из 4 человек}\fancyfoot[R]{\small\color{Muted}\thepage\ / \pageref{LastPage}}\renewcommand{\headrulewidth}{0.4pt}
+\titleformat{\section}{\Large\bfseries\color{Ink}}{\colorbox{MaxPurple}{\textcolor{white}{\strut\thesection}}}{0.65em}{}\titleformat{\subsection}{\large\bfseries\color{Ink}}{\thesubsection}{0.55em}{}\titlespacing*{\section}{0pt}{1.9ex}{0.9ex}\titlespacing*{\subsection}{0pt}{1.3ex}{0.5ex}
+\newlist{tasklist}{itemize}{1}\setlist[tasklist]{label=$\square$,leftmargin=1.6em,itemsep=0.22em,topsep=0.3em}\setlist[itemize]{leftmargin=1.55em,itemsep=0.2em,topsep=0.3em}
+\setlength{\parindent}{0pt}
+\newcommand{\code}[1]{\texttt{#1}}\newcommand{\owner}[1]{\textcolor{MaxPurple}{\textbf{Владелец: #1}}}
+\newtcolorbox{goalbox}[1][]{colback=Panel,colframe=MaxPurple,boxrule=0.9pt,arc=2mm,left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,#1}\newtcolorbox{alertbox}[1][]{colback=white,colframe=Alert,boxrule=0.9pt,arc=2mm,left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,#1}
+\begin{document}
+\begin{titlepage}\pagecolor{MaxPurple}\color{white}\vspace*{17mm}{\fontsize{15}{18}\selectfont ПРОЕКТ \textbullet{} QR-ПОСЕЩАЕМОСТЬ В MAX}\par\vspace{19mm}{\fontsize{36}{42}\selectfont\bfseries Спринт 4\\Релиз, сдача\\и подготовка защиты}\par\vspace{9mm}{\Large 28-29 сентября 2026}\par\vfill
+\begin{tcolorbox}[colback=white,colframe=white,arc=3mm,boxrule=0pt]\color{Ink}\textbf{Цель:} превратить замороженный прототип в воспроизводимый release candidate, проверить его как эксперт, подготовить презентацию и демонстрацию, зафиксировать commit и отправить комплект до 29 сентября, 18:00 МСК.\end{tcolorbox}\vspace{8mm}{\large Команда: Данил, Рома, Никита, Амир}\par\end{titlepage}\nopagecolor\color{Ink}
+
+\section{Результат спринта}
+\begin{goalbox}
+Команда отправила один согласованный комплект: публично проверяемый сервис, зафиксированный исходный код, воспроизводимую Docker-сборку, README, OpenAPI/DATA-API при наличии собственного API, тестовые данные, PDF-презентацию и резервную запись демонстрации. Каждый участник умеет объяснить свою часть и общий сценарий.
+\end{goalbox}
+\begin{alertbox}
+\textbf{Внутренний дедлайн отправки: 29 сентября, 18:00 МСК.} 30 сентября считается только аварийным буфером. После release candidate разрешены исключительно blocker-fixes с повторным полным regression test.
+\end{alertbox}
+
+\section{Контрольный календарь}
+\begin{tabularx}{\textwidth}{p{39mm}X>{\raggedright\arraybackslash}p{38mm}}\toprule
+Срок & Контрольная точка & Ответственный\\\midrule
+28 сен., 18:00 & release candidate: код, Docker, миграции, тестовые данные & Амир + Данил\\
+28 сен., 20:00 & первая полная репетиция продукта и выступления & вся команда\\
+29 сен., 12:00 & финальный commit, README, презентация и demo assets & Данил\\
+29 сен., 15:00 & вторая репетиция и проверка ссылок с чистого устройства & вся команда\\
+29 сен., 18:00 & отправка и фиксация подтверждения & Данил\\
+30 сентября & только аварийный буфер, если площадка допускает обновление & Данил\\\bottomrule
+\end{tabularx}
+
+\section{Задачи Данила}
+\owner{Данил - релиз и сдача}
+\begin{tasklist}
+  \item Провести финальную приёмку.
+  \item Проверить весь сценарий по README с чистого окружения.
+  \item Проверить все ссылки: бот, Mini App, репозиторий, сервис, API и demo.
+  \item Собрать PDF-презентацию.
+  \item Подготовить служебный первый слайд со ссылками, commit hash и тестовыми данными.
+  \item Написать сценарий демонстрации и резервную ветку при проблеме сети.
+  \item Распределить выступление между четырьмя участниками.
+  \item Подготовить вопросы и ответы.
+  \item Провести две полные репетиции с таймером.
+  \item Зафиксировать финальный commit.
+  \item Поставить Git tag.
+  \item Зафиксировать commit hash.
+  \item Запретить несогласованные изменения release candidate.
+  \item Организовать отправку до 29 сентября, 18:00 МСК.
+  \item Сохранить подтверждение отправки.
+\end{tasklist}
+
+\section{Задачи Ромы}
+\owner{Рома - product story и pilot}
+\begin{tasklist}
+  \item Завершить слайды о пользователе и проблеме.
+  \item Добавить доказательства актуальности.
+  \item Добавить As Is / To Be.
+  \item Добавить ценность и метрики.
+  \item Добавить пилот.
+  \item Добавить масштабирование.
+  \item Добавить ограничения.
+  \item Проверить логику презентации и убрать дубли.
+  \item Подготовить продуктовые ответы жюри.
+  \item Участвовать в обеих репетициях защиты.
+\end{tasklist}
+
+\section{Задачи Никиты}
+\owner{Никита - demo UI и MAX integration}
+\begin{tasklist}
+  \item Исправить визуальные дефекты.
+  \item Проверить интерфейс на демонстрационном устройстве.
+  \item Подготовить тестового преподавателя и студента.
+  \item Проверить тестовую группу, deep link, QR, таймер, check-in, список и закрытие.
+  \item Сделать скриншоты.
+  \item Записать резервное видео без персональных данных и секретов.
+  \item Проверить MAX Web и Mobile.
+  \item Исправлять только блокирующие UI-баги.
+  \item После каждого blocker-fix проводить полный frontend regression.
+  \item Подготовить объяснение MAX-интеграции и UX двух ролей.
+\end{tasklist}
+
+\section{Задачи Амира}
+\owner{Амир - technical release owner}
+\begin{tasklist}
+  \item Проверить Docker-сборку с нуля одной командой.
+  \item Проверить время сборки.
+  \item Проверить миграции.
+  \item Проверить healthcheck.
+  \item Проверить публичный HTTPS.
+  \item Зафиксировать OpenAPI 3.0/3.1.
+  \item Подготовить \code{DATA-API.yaml} при наличии собственного API.
+  \item Подготовить тестовые данные.
+  \item Проверить тестовые аккаунты.
+  \item Проверить зависимости и отсутствие закрытых библиотек.
+  \item Проверить лицензии.
+  \item Выполнить secret scanning кода, истории, image и логов.
+  \item Проверить \code{.dockerignore} и \code{.env.example}.
+  \item Подготовить техническую часть README.
+  \item Подготовить техническую часть презентации.
+  \item Подготовить технические ответы жюри.
+\end{tasklist}
+
+\section{Постоянные владельцы направлений}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{25mm}X X}\toprule
+Участник & Владеет разделами & Поддерживает\\\midrule
+Данил & управление, границы MVP, тестирование, документация, презентация, demo, сдача & все направления на приёмке\\
+Рома & продуктовое исследование, пилот, масштабирование & MVP, UX, backend, frontend, презентация\\
+Никита & UX/UI, MAX integration, frontend & архитектура, backend, документация\\
+Амир & архитектура, backend, безопасность, Docker/DevOps & MVP, MAX integration, документация, сдача\\\bottomrule
+\end{tabularx}
+
+\section{Ежедневный ритм}
+\begin{itemize}
+  \item \textbf{10:00 - stand-up, 10 минут:} сделано, план, блокеры.
+  \item \textbf{15:00 - быстрая интеграция:} frontend и backend проверяют совместимость.
+  \item \textbf{20:00 - вечерняя демонстрация:} показывается только работающий результат.
+  \item После демонстрации Данил обновляет приоритеты следующего дня.
+\end{itemize}
+\begin{alertbox}\textbf{Критический стык: Никита + Амир.} После любого blocker-fix они вместе повторяют полный frontend-backend regression.\end{alertbox}
+
+\section{Общие командные проверки}
+\begin{tasklist}
+  \item Провести три полных demo-run: внутренний, на чистом устройстве и финальный с таймером.
+  \item Запустить проект строго по README на окружении без локальных кэшей разработчика.
+  \item Проверить доступность всех публичных сервисов и ссылок из презентации.
+  \item Проверить основной сценарий после каждого изменения release candidate.
+  \item Сохранить backup-видео, скриншоты и локальную копию презентации.
+  \item Провести stress Q\&A: каждый задаёт неудобные вопросы чужому блоку.
+  \item Убедиться, что каждый участник понимает общую архитектуру, ценность, ограничения и план пилота.
+\end{tasklist}
+
+\section{Финальный комплект}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{43mm}X}\toprule
+Артефакт & Проверка готовности\\\midrule
+Bot / Mini App & открывается в mobile и web MAX; основной сценарий доступен\\
+Исходный код & финальный commit hash зафиксирован; после дедлайна код не меняется\\
+Docker & одна команда, чистая сборка, миграции, healthcheck, тестовые данные\\
+Конфигурация & \code{.env.example} без секретов; секреты не попали в код/логи\\
+API & HTTPS, OpenAPI 3.0/3.1, \code{DATA-API.yaml} при наличии собственного API\\
+README & точный запуск, настройки, сценарий проверки, ограничения и контакты\\
+Презентация & PDF; первый сервисный слайд содержит ссылки, commit и тестовые данные\\
+Demo backup & короткое видео и скриншоты без секретов и персональных данных\\
+Подтверждение & отправка сохранена, дата и время зафиксированы\\\bottomrule
+\end{tabularx}
+
+\section{Финальный сценарий демонстрации}
+\begin{enumerate}[leftmargin=1.7em,itemsep=0.25em]
+  \item За 20-30 секунд показать проблему и обещание ценности.
+  \item Преподаватель открывает группу и запускает занятие.
+  \item На экране появляется динамический QR с таймером.
+  \item Студент сканирует QR и открывает Mini App через MAX deep link.
+  \item Студент успешно отмечается; преподаватель видит обновление списка.
+  \item Повторная отметка отклоняется понятным сообщением.
+  \item Преподаватель закрывает сессию и экспортирует итог.
+  \item Команда кратко объясняет безопасность, пилот и следующий шаг.
+\end{enumerate}
+
+\section{Финальный sign-off}
+\begin{tabularx}{\textwidth}{p{27mm}X p{28mm}}\toprule Участник & Подтверждает & Статус\\\midrule
+Данил & комплект, ссылки, презентация, отправка & $\square$\\
+Рома & продуктовая часть, пилот, метрики & $\square$\\
+Никита & UI, mobile/web MAX, demo assets & $\square$\\
+Амир & backend, Docker, API, security & $\square$\\\bottomrule\end{tabularx}
+\vspace{4mm}\begin{goalbox}\textbf{Финальный commit hash:} \rule{75mm}{0.4pt}\\[2mm]\textbf{Время отправки:} \rule{45mm}{0.4pt}\quad \textbf{Подтверждение сохранено:} $\square$\end{goalbox}
+\end{document}

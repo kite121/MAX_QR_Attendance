@@ -1,0 +1,155 @@
+% !TEX program = xelatex
+\documentclass[11pt,a4paper]{article}
+\usepackage[a4paper,margin=18mm,headheight=15pt]{geometry}
+\usepackage{fontspec}\usepackage{polyglossia}\setdefaultlanguage{russian}\setotherlanguage{english}
+\setmainfont{Arial}\setsansfont{Arial}\setmonofont{Arial}
+\usepackage{microtype,enumitem,array,booktabs,tabularx,xcolor,hyperref,fancyhdr,titlesec,tcolorbox,amssymb,lastpage}
+\definecolor{MaxPurple}{HTML}{641CF3}\definecolor{MaxBlue}{HTML}{0A84FF}\definecolor{Ink}{HTML}{16181D}\definecolor{Muted}{HTML}{5E6673}\definecolor{Panel}{HTML}{F3F6FA}\definecolor{Alert}{HTML}{D92D20}
+\hypersetup{colorlinks=true,linkcolor=MaxPurple,urlcolor=MaxBlue,pdftitle={Спринт 2 - вертикальный MVP},pdfauthor={Команда QR-посещаемости в MAX}}
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{\small\color{Muted}QR-посещаемость в MAX}\fancyhead[R]{\small\color{Muted}Спринт 2 \textbullet{} 24-25 сентября}\fancyfoot[L]{\small\color{Muted}План команды из 4 человек}\fancyfoot[R]{\small\color{Muted}\thepage\ / \pageref{LastPage}}\renewcommand{\headrulewidth}{0.4pt}
+\titleformat{\section}{\Large\bfseries\color{Ink}}{\colorbox{MaxPurple}{\textcolor{white}{\strut\thesection}}}{0.65em}{}\titleformat{\subsection}{\large\bfseries\color{Ink}}{\thesubsection}{0.55em}{}\titlespacing*{\section}{0pt}{1.9ex}{0.9ex}\titlespacing*{\subsection}{0pt}{1.3ex}{0.5ex}
+\newlist{tasklist}{itemize}{1}\setlist[tasklist]{label=$\square$,leftmargin=1.6em,itemsep=0.22em,topsep=0.3em}\setlist[itemize]{leftmargin=1.55em,itemsep=0.2em,topsep=0.3em}
+\setlength{\parindent}{0pt}
+\newcommand{\code}[1]{\texttt{#1}}\newcommand{\owner}[1]{\textcolor{MaxPurple}{\textbf{Владелец: #1}}}
+\newtcolorbox{goalbox}[1][]{colback=Panel,colframe=MaxPurple,boxrule=0.9pt,arc=2mm,left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,#1}\newtcolorbox{alertbox}[1][]{colback=white,colframe=Alert,boxrule=0.9pt,arc=2mm,left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,#1}
+\begin{document}
+\begin{titlepage}\pagecolor{MaxPurple}\color{white}\vspace*{17mm}{\fontsize{15}{18}\selectfont ПРОЕКТ \textbullet{} QR-ПОСЕЩАЕМОСТЬ В MAX}\par\vspace{19mm}{\fontsize{36}{42}\selectfont\bfseries Спринт 2\\Вертикальный\\рабочий MVP}\par\vspace{9mm}{\Large 24-25 сентября 2026}\par\vfill
+\begin{tcolorbox}[colback=white,colframe=white,arc=3mm,boxrule=0pt]\color{Ink}\textbf{Цель:} провести одного преподавателя и одного студента через полный сценарий без ручного вмешательства в базу: группа $\rightarrow$ сессия $\rightarrow$ QR $\rightarrow$ check-in $\rightarrow$ список $\rightarrow$ закрытие.\end{tcolorbox}\vspace{8mm}{\large Команда: Данил, Рома, Никита, Амир}\par\end{titlepage}\nopagecolor\color{Ink}
+
+\section{Результат спринта}
+\begin{goalbox}
+К вечеру 25 сентября готов первый end-to-end MVP. Он может быть визуально неполированным, но обязан работать внутри MAX на реальных тестовых данных и через настоящие API. Демонстрация проходит без SQL-консоли, Postman и ручного изменения состояния.
+\end{goalbox}
+\begin{alertbox}\textbf{Правило спринта:} никакой работы над P2. Любой blocker основного сценария получает высший приоритет и владельца в день обнаружения.\end{alertbox}
+
+\section{Распределение ответственности}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{25mm}p{34mm}X}\toprule
+Участник & Основная роль & Результат к концу спринта\\\midrule
+Данил & acceptance, QA, интеграция & проверяемые критерии и стабильный ежедневный demo build\\
+Рома & product, UX, backend-support & группы, тексты интерфейса, UX-проверка и продуктовые слайды\\
+Никита & frontend и MAX & весь путь преподавателя и студента в Mini App\\
+Амир & backend и данные & полный API основного сценария и безопасный check-in\\\bottomrule
+\end{tabularx}
+
+\section{Задачи Данила}
+\owner{Данил}
+\begin{tasklist}
+  \item Описать acceptance criteria основного сценария.
+  \item Подготовить тестовые аккаунты.
+  \item Подготовить тестовую группу.
+  \item Создать список интеграционных проверок.
+  \item Обновлять README по мере реализации.
+  \item Ежедневно проводить общий интеграционный прогон.
+  \item Не допускать добавления P2-функций.
+  \item Фиксировать обнаруженные блокеры, владельцев и сроки исправления.
+  \item Не принимать заглушки или ручное редактирование БД как готовую функцию.
+\end{tasklist}
+
+\section{Задачи Ромы}
+\owner{Рома - product lead и backend-support}
+\begin{tasklist}
+  \item Подготовить тестовый состав группы.
+  \item Реализовать или помочь реализовать endpoints групп.
+  \item Реализовать привязку студентов к группе.
+  \item Проверить тексты интерфейса.
+  \item Подготовить сообщения об успешной отметке и ошибках.
+  \item Проверить понятность сценария на пользователях.
+  \item Зафиксировать результаты мини-UX-теста и выбрать blocker/P1-исправления.
+  \item Начать материалы презентации: проблема, доказательства, As Is и To Be.
+  \item Проверить соответствие сценария ценности и метрикам MVP.
+\end{tasklist}
+
+\section{Задачи Никиты}
+\owner{Никита - frontend и MAX integration lead}
+\begin{tasklist}
+  \item Реализовать авторизацию через MAX.
+  \item Реализовать экран выбора группы.
+  \item Реализовать запуск attendance-сессии.
+  \item Реализовать экран QR.
+  \item Добавить таймер QR.
+  \item Реализовать студенческий экран.
+  \item Передавать \code{start\_param} backend-серверу.
+  \item Реализовать подтверждение посещаемости.
+  \item Реализовать живой список присутствующих.
+  \item Реализовать завершение сессии.
+  \item Реализовать итоговый экран.
+  \item Проверить весь путь в мобильном и web-клиенте MAX.
+\end{tasklist}
+
+\section{Задачи Амира}
+\owner{Амир - backend и security lead}
+\begin{tasklist}
+  \item Реализовать авторизацию MAX.
+  \item Создавать и обновлять пользователя из валидного \code{initData}.
+  \item Определять роль пользователя и проверять её на сервере.
+  \item Реализовать группы и memberships.
+  \item Реализовать создание attendance-сессии.
+  \item Реализовать создание случайного QR-токена.
+  \item Хранить только hash QR-токена.
+  \item Добавить срок действия токена.
+  \item Реализовать endpoint check-in.
+  \item Проверять принадлежность студента к группе.
+  \item Запретить повторную отметку.
+  \item Возвращать список присутствующих.
+  \item Реализовать закрытие сессии.
+  \item Возвращать стабильные коды ошибок для frontend.
+  \item Добавить интеграционный тест полного happy path.
+\end{tasklist}
+
+\section{Постоянные владельцы направлений}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{25mm}X X}\toprule
+Участник & Владеет разделами & Поддерживает\\\midrule
+Данил & управление, границы MVP, тестирование, документация, презентация, demo, сдача & все направления на приёмке\\
+Рома & продуктовое исследование, пилот, масштабирование & MVP, UX, backend, frontend, презентация\\
+Никита & UX/UI, MAX integration, frontend & архитектура, backend, документация\\
+Амир & архитектура, backend, безопасность, Docker/DevOps & MVP, MAX integration, документация, сдача\\\bottomrule
+\end{tabularx}
+
+\section{Ежедневный ритм}
+\begin{itemize}
+  \item \textbf{10:00 - stand-up, 10 минут:} сделано, план, блокеры.
+  \item \textbf{15:00 - быстрая интеграция:} frontend и backend проверяют совместимость.
+  \item \textbf{20:00 - вечерняя демонстрация:} показывается только работающий результат.
+  \item После демонстрации Данил обновляет приоритеты следующего дня.
+\end{itemize}
+\begin{alertbox}\textbf{Критический стык: Никита + Амир.} Frontend и backend интегрируются ежедневно; нельзя ждать окончания разработки отдельных веток.\end{alertbox}
+
+\section{Основной сценарий приёмки}
+\begin{enumerate}[leftmargin=1.7em,itemsep=0.25em]
+  \item Преподаватель открывает Mini App в MAX и видит свои группы.
+  \item Преподаватель открывает тестовую группу и запускает занятие.
+  \item На экране появляется QR-код и активный таймер.
+  \item Студент сканирует QR, переходит по deep link в MAX и подтверждает отметку.
+  \item Backend валидирует пользователя, membership, сессию и QR-токен.
+  \item Студент получает успешный результат, преподаватель видит его в списке.
+  \item Повторная попытка не создаёт вторую запись.
+  \item Преподаватель закрывает сессию и видит итог.
+\end{enumerate}
+
+\section{Точки интеграции}
+\begin{tabularx}{\textwidth}{p{30mm}X>{\raggedright\arraybackslash}p{37mm}}\toprule
+Когда & Совместная проверка & Участники\\\midrule
+24 сен., 15:00 & auth, groups и memberships работают через UI & Рома + Никита + Амир\\
+24 сен., 20:00 & создание сессии и показ реального QR & вся команда\\
+25 сен., 15:00 & check-in, live-список, duplicate и close & Никита + Амир\\
+25 сен., 20:00 & полный happy path на тестовых аккаунтах & вся команда\\\bottomrule
+\end{tabularx}
+
+\section{Критерии выхода}
+\begin{tasklist}
+  \item Полный happy path проходит внутри MAX без ручного вмешательства.
+  \item Преподаватель может создать/выбрать группу и запустить сессию.
+  \item QR содержит ограниченный по времени токен, а не идентификатор занятия в открытом виде.
+  \item Участник группы отмечается ровно один раз.
+  \item Неучастник группы и невалидный токен отклоняются сервером.
+  \item Список присутствующих обновляется и сохраняется после закрытия сессии.
+  \item Все API-вызовы выполняются frontend-приложением, данные хранятся в PostgreSQL.
+  \item README позволяет другому участнику повторить демонстрацию.
+\end{tasklist}
+
+\section{Рабочий журнал}
+\begin{tabularx}{\textwidth}{p{25mm}X X}\toprule Дата & Сделано / доказательство & Блокер / решение\\\midrule
+24 сентября & \rule{0pt}{11mm} & \\
+25 сентября & \rule{0pt}{11mm} & \\\bottomrule\end{tabularx}
+\vspace{4mm}\begin{goalbox}\textbf{Решение sprint review:} $\square$ принят \quad $\square$ принят с долгом \quad $\square$ не принят.\\[2mm]\textbf{Незакрытые P0 и владелец:} \rule{105mm}{0.4pt}\end{goalbox}
+\end{document}

@@ -1,0 +1,163 @@
+% !TEX program = xelatex
+\documentclass[11pt,a4paper]{article}
+\usepackage[a4paper,margin=18mm,headheight=15pt]{geometry}
+\usepackage{fontspec}\usepackage{polyglossia}\setdefaultlanguage{russian}\setotherlanguage{english}\setmainfont{Arial}\setsansfont{Arial}\setmonofont{Arial}
+\usepackage{microtype,enumitem,array,booktabs,tabularx,xcolor,hyperref,fancyhdr,titlesec,tcolorbox,amssymb,lastpage}
+\definecolor{MaxPurple}{HTML}{641CF3}\definecolor{MaxBlue}{HTML}{0A84FF}\definecolor{Ink}{HTML}{16181D}\definecolor{Muted}{HTML}{5E6673}\definecolor{Panel}{HTML}{F3F6FA}\definecolor{Alert}{HTML}{D92D20}
+\hypersetup{colorlinks=true,linkcolor=MaxPurple,urlcolor=MaxBlue,pdftitle={Спринт 3 - стабильность и безопасность},pdfauthor={Команда QR-посещаемости в MAX}}
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{\small\color{Muted}QR-посещаемость в MAX}\fancyhead[R]{\small\color{Muted}Спринт 3 \textbullet{} 26-27 сентября}\fancyfoot[L]{\small\color{Muted}План команды из 4 человек}\fancyfoot[R]{\small\color{Muted}\thepage\ / \pageref{LastPage}}\renewcommand{\headrulewidth}{0.4pt}
+\titleformat{\section}{\Large\bfseries\color{Ink}}{\colorbox{MaxPurple}{\textcolor{white}{\strut\thesection}}}{0.65em}{}\titleformat{\subsection}{\large\bfseries\color{Ink}}{\thesubsection}{0.55em}{}\titlespacing*{\section}{0pt}{1.9ex}{0.9ex}\titlespacing*{\subsection}{0pt}{1.3ex}{0.5ex}
+\newlist{tasklist}{itemize}{1}\setlist[tasklist]{label=$\square$,leftmargin=1.6em,itemsep=0.22em,topsep=0.3em}\setlist[itemize]{leftmargin=1.55em,itemsep=0.2em,topsep=0.3em}
+\setlength{\parindent}{0pt}
+\newcommand{\code}[1]{\texttt{#1}}\newcommand{\owner}[1]{\textcolor{MaxPurple}{\textbf{Владелец: #1}}}
+\newtcolorbox{goalbox}[1][]{colback=Panel,colframe=MaxPurple,boxrule=0.9pt,arc=2mm,left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,#1}\newtcolorbox{alertbox}[1][]{colback=white,colframe=Alert,boxrule=0.9pt,arc=2mm,left=3mm,right=3mm,top=2.5mm,bottom=2.5mm,#1}
+\begin{document}
+\begin{titlepage}\pagecolor{MaxPurple}\color{white}\vspace*{17mm}{\fontsize{15}{18}\selectfont ПРОЕКТ \textbullet{} QR-ПОСЕЩАЕМОСТЬ В MAX}\par\vspace{19mm}{\fontsize{36}{42}\selectfont\bfseries Спринт 3\\Стабильность,\\безопасность и полный UX}\par\vspace{9mm}{\Large 26-27 сентября 2026}\par\vfill
+\begin{tcolorbox}[colback=white,colframe=white,arc=3mm,boxrule=0pt]\color{Ink}\textbf{Цель:} превратить работающий happy path в надёжный продуктовый прототип: закрыть ошибки, защитить check-in, проверить web/mobile, подготовить экспорт и зафиксировать функции 27 сентября в 20:00.\end{tcolorbox}\vspace{8mm}{\large Команда: Данил, Рома, Никита, Амир}\par\end{titlepage}\nopagecolor\color{Ink}
+
+\section{Результат спринта}
+\begin{goalbox}
+К feature freeze основной сценарий стабилен, ошибки объясняются пользователю, повторные и просроченные отметки блокируются, права проверяются на сервере, результаты экспортируются, Docker-сборка воспроизводима, а демонстрация работает в мобильном и web-клиенте MAX.
+\end{goalbox}
+\begin{alertbox}\textbf{Feature freeze: 27 сентября, 20:00.} После него запрещены новые функции. Разрешены только исправления blocker и дефектов, угрожающих сдаче или демонстрации.\end{alertbox}
+
+\section{Распределение ответственности}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{25mm}p{34mm}X}\toprule
+Участник & Основная роль & Результат к концу спринта\\\midrule
+Данил & QA, риски, freeze & матрица тестов, подтверждённая стабильность, реестр рисков\\
+Рома & UX, pilot, export & понятные ошибки, CSV, план пилота и продуктовая история\\
+Никита & полный UX & состояния, адаптивность, QR-rotation и полировка\\
+Амир & security, tests, observability & защищённый backend, логи, тесты, миграции и ограничения БД\\\bottomrule
+\end{tabularx}
+
+\section{Задачи Данила}
+\owner{Данил}
+\begin{tasklist}
+  \item Создать полную тестовую матрицу.
+  \item Проверить happy path несколько раз.
+  \item Проверить сценарий на двух студентах.
+  \item Проверить MAX Web.
+  \item Проверить MAX Mobile.
+  \item Проверить повторный запуск приложения и контейнеров.
+  \item Проверить плохое соединение.
+  \item Проверить восстановление после ошибки.
+  \item Подготовить план пилота вместе с Ромой.
+  \item Подготовить список рисков и ограничений.
+  \item Контролировать feature freeze 27 сентября в 20:00.
+  \item Начать финальный acceptance checklist для Sprint 4.
+\end{tasklist}
+
+\section{Задачи Ромы}
+\owner{Рома - product, UX и pilot lead}
+\begin{tasklist}
+  \item Проверить UX всех сообщений.
+  \item Помочь реализовать ручное исправление результата преподавателем.
+  \item Помочь реализовать экспорт CSV.
+  \item Описать пилот: площадка, группа, длительность, критерии успеха и обратная связь.
+  \item Описать масштабирование.
+  \item Определить ядро и переменную часть продукта.
+  \item Подготовить продуктовую часть презентации.
+  \item Зафиксировать факты, гипотезы и допущения.
+  \item Описать ограничения: MAX, интернет, регламенты, интеграции и персональные данные.
+  \item Провести короткий UX-тест с преподавателем или студентом.
+\end{tasklist}
+
+\section{Задачи Никиты}
+\owner{Никита - UI/UX и frontend lead}
+\begin{tasklist}
+  \item Добавить loading-состояния.
+  \item Добавить empty-состояния.
+  \item Добавить обработку ошибок.
+  \item Обработать повторную отметку.
+  \item Обработать просроченный QR.
+  \item Обработать закрытую сессию.
+  \item Обработать отсутствие студента в группе.
+  \item Добавить повторную попытку после ошибки без создания дубликатов.
+  \item Добавить автоматическое обновление списка.
+  \item Добавить ротацию QR на frontend.
+  \item Проверить адаптивность в MAX Web и Mobile.
+  \item Провести UI-polish.
+  \item Сделать скриншоты для презентации.
+  \item Проверить отсутствие токенов и stack trace в UI.
+\end{tasklist}
+
+\section{Задачи Амира}
+\owner{Амир - backend, security и quality lead}
+\begin{tasklist}
+  \item Проверять \code{auth\_date}.
+  \item Добавить ротацию QR-токенов.
+  \item Добавить уникальное ограничение \code{session + student} на check-in.
+  \item Проверить атомарность параллельных отметок.
+  \item Добавить rate limiting.
+  \item Добавить проверку ролей для каждой защищённой операции.
+  \item Добавить audit log.
+  \item Добавить структурированные логи без токенов и секретов.
+  \item Реализовать экспорт CSV, если он не делегирован Роме.
+  \item Написать unit-тесты.
+  \item Написать интеграционные тесты.
+  \item Проверить миграции на пустой базе.
+  \item Проверить миграции на существующей тестовой базе.
+  \item Проверить отсутствие секретов в коде, истории и логах.
+\end{tasklist}
+
+\section{Постоянные владельцы направлений}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{25mm}X X}\toprule
+Участник & Владеет разделами & Поддерживает\\\midrule
+Данил & управление, границы MVP, тестирование, документация, презентация, demo, сдача & все направления на приёмке\\
+Рома & продуктовое исследование, пилот, масштабирование & MVP, UX, backend, frontend, презентация\\
+Никита & UX/UI, MAX integration, frontend & архитектура, backend, документация\\
+Амир & архитектура, backend, безопасность, Docker/DevOps & MVP, MAX integration, документация, сдача\\\bottomrule
+\end{tabularx}
+
+\section{Ежедневный ритм}
+\begin{itemize}
+  \item \textbf{10:00 - stand-up, 10 минут:} сделано, план, блокеры.
+  \item \textbf{15:00 - быстрая интеграция:} frontend и backend проверяют совместимость.
+  \item \textbf{20:00 - вечерняя демонстрация:} показывается только работающий результат.
+  \item После демонстрации Данил обновляет приоритеты следующего дня.
+\end{itemize}
+\begin{alertbox}\textbf{Критический стык: Никита + Амир.} Frontend и backend интегрируются ежедневно; нельзя ждать окончания разработки отдельных веток.\end{alertbox}
+
+\section{Матрица обязательных проверок}
+\begin{tabularx}{\textwidth}{p{36mm}X>{\raggedright\arraybackslash}p{38mm}}\toprule
+Сценарий & Ожидаемый результат & Владелец\\\midrule
+Первый check-in & одна запись, успех у студента, обновление у преподавателя & Никита + Амир\\
+Повторный check-in & нет второй записи, понятное сообщение & Никита + Амир\\
+Истёкший QR & сервер отклоняет, UI предлагает новый QR & Амир + Никита\\
+Закрытая сессия & отметка запрещена, результат сохранён & Амир\\
+Студент не в группе & доступ запрещён без утечки состава & Амир\\
+Два одновременных запроса & ровно одна запись в БД & Амир\\
+Плохая сеть & retry без дубля, понятный статус & Никита\\
+Перезапуск Docker & сервис и данные восстанавливаются & Данил + Амир\\
+Mobile и web MAX & основной путь доступен и читаем & Данил + Никита\\\bottomrule
+\end{tabularx}
+
+\section{Точки интеграции}
+\begin{tabularx}{\textwidth}{p{30mm}X>{\raggedright\arraybackslash}p{37mm}}\toprule
+Когда & Совместная проверка & Участники\\\midrule
+26 сен., 15:00 & error contract, UI states, duplicate и expired & Никита + Амир + Рома\\
+26 сен., 20:00 & 2 студента, ротация QR, CSV и audit log & вся команда\\
+27 сен., 15:00 & mobile/web, restart, concurrency, secret scan & вся команда\\
+27 сен., 20:00 & feature freeze и итоговый regression test & вся команда\\\bottomrule
+\end{tabularx}
+
+\section{Критерии выхода}
+\begin{tasklist}
+  \item Все P0 закрыты; незакрытые P1 явно вынесены из релиза.
+  \item Все основные ошибки имеют серверную проверку и понятный UI.
+  \item Happy path работает подряд для двух студентов в mobile и web MAX.
+  \item QR ограничен по времени и ротируется; expired token не принимается.
+  \item Дубли невозможны даже при конкурентных запросах.
+  \item Права проверяются на backend, audit log фиксирует критические действия.
+  \item CSV корректно открывается и содержит ожидаемые поля.
+  \item Docker restart и миграции проходят; тесты зелёные.
+  \item В коде, логах и истории нет секретов.
+  \item Feature freeze официально зафиксирован.
+\end{tasklist}
+
+\section{Рабочий журнал}
+\begin{tabularx}{\textwidth}{p{25mm}X X}\toprule Дата & Сделано / доказательство & Блокер / решение\\\midrule
+26 сентября & \rule{0pt}{11mm} & \\
+27 сентября & \rule{0pt}{11mm} & \\\bottomrule\end{tabularx}
+\vspace{4mm}\begin{goalbox}\textbf{Решение sprint review:} $\square$ принят \quad $\square$ принят с долгом \quad $\square$ не принят.\\[2mm]\textbf{Разрешённые после freeze исправления:} \rule{72mm}{0.4pt}\end{goalbox}
+\end{document}
