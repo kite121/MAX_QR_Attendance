@@ -31,7 +31,7 @@ interface MockDatabase {
 }
 
 const DATABASE_KEY = 'baam-max-mock-database-v1';
-const MOCK_DELAY_MS = 180;
+const MOCK_DELAY_MS = import.meta.env.MODE === 'test' ? 0 : 180;
 
 const groups: Group[] = [
   { id: 'group-ivt-21', name: 'ИВТ-21', student_count: 2 },

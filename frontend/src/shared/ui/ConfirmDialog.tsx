@@ -6,6 +6,7 @@ interface ConfirmDialogProps {
   description: string;
   confirmLabel: string;
   pending?: boolean;
+  error?: string;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -16,6 +17,7 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   pending = false,
+  error,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -35,6 +37,7 @@ export function ConfirmDialog({
         </div>
         <h2 id="confirm-dialog-title">{title}</h2>
         <p>{description}</p>
+        {error ? <div className="notice notice--error">{error}</div> : null}
         <div className="confirm-dialog__actions">
           <Button size="large" variant="secondary" onClick={onCancel} disabled={pending}>
             Отмена

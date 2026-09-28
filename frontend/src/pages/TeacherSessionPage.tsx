@@ -8,6 +8,7 @@ import { queryKeys } from '../app/queryKeys';
 import { useAuth } from '../features/auth/AuthProvider';
 import { AttendanceList } from '../features/teacher/AttendanceList';
 import { api } from '../shared/api/api';
+import { isApiError } from '../shared/api/ApiError';
 import type { AttendanceSession, Group } from '../shared/api/types';
 import { formatLongDate } from '../shared/lib/date';
 import { useNow } from '../shared/lib/useNow';
@@ -72,8 +73,12 @@ export function TeacherSessionPage() {
 
   async function copyDeepLink() {
     if (!qrQuery.data) return;
-    await navigator.clipboard.writeText(qrQuery.data.deep_link);
-    setCopyLabel('Ссылка скопирована');
+    try {
+      await navigator.clipboard.writeText(qrQuery.data.deep_link);
+      setCopyLabel('Ссылка скопирована');
+    } catch {
+      setCopyLabel('Не удалось скопировать');
+    }
     window.setTimeout(() => setCopyLabel('Скопировать ссылку'), 1_800);
   }
 
@@ -244,6 +249,13 @@ export function TeacherSessionPage() {
         description="После завершения новые отметки будут недоступны. Итоговый список сохранится."
         confirmLabel="Завершить"
         pending={closeSession.isPending}
+        error={
+          closeSession.isError
+            ? isApiError(closeSession.error)
+              ? closeSession.error.message
+              : 'Не удалось завершить занятие. Попробуйте ещё раз.'
+            : undefined
+        }
         onCancel={() => setShowCloseDialog(false)}
         onConfirm={() => closeSession.mutate()}
       />

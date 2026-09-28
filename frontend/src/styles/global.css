@@ -731,6 +731,11 @@ input {
   line-height: 1.48;
 }
 
+.confirm-dialog .notice {
+  margin: 16px 0 0;
+  text-align: left;
+}
+
 .confirm-dialog__actions {
   margin-top: 24px;
   display: grid;
