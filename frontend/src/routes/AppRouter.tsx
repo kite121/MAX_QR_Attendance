@@ -3,7 +3,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthProvider';
 import { DevLoginPage } from '../pages/DevLoginPage';
 import { StudentPlaceholderPage } from '../pages/StudentPlaceholderPage';
-import { TeacherPlaceholderPage } from '../pages/TeacherPlaceholderPage';
+import { TeacherHomePage } from '../pages/TeacherHomePage';
+import { TeacherSessionPage } from '../pages/TeacherSessionPage';
 import { StateView } from '../shared/ui/StateView';
 
 export function AppRouter() {
@@ -30,10 +31,20 @@ export function AppRouter() {
   return (
     <Routes>
       <Route
-        path="/teacher/*"
+        path="/teacher"
         element={
           user.role === 'teacher' ? (
-            <TeacherPlaceholderPage />
+            <TeacherHomePage />
+          ) : (
+            <Navigate to={homePath} replace />
+          )
+        }
+      />
+      <Route
+        path="/teacher/sessions/:sessionId"
+        element={
+          user.role === 'teacher' ? (
+            <TeacherSessionPage />
           ) : (
             <Navigate to={homePath} replace />
           )
