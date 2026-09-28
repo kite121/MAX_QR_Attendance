@@ -12,12 +12,15 @@
 ## Преподаватель
 
 - `GET /groups` — объект `{ items }`; группе нужны `id`, `name`, `student_count`.
+- `POST /groups` с `{ "name": "..." }` — создание тестовой группы преподавателем; `GET /groups/{group_id}/students` и `POST /groups/{group_id}/enrollments` с `{ "student_id": "..." }` доступны только преподавателю этой группы.
 - `POST /groups/{group_id}/sessions` с `{ "title": "..." }` — новая сессия.
+- `GET /groups/{group_id}/sessions/active` и `GET /sessions/{session_id}` — повторное открытие активной сессии или получение сессии по ID. Повторный `POST /groups/{group_id}/sessions` возвращает уже активную сессию группы.
 - `POST /sessions/{session_id}/qr-token` — строка `deep_link`, непрозрачный `token`, `expires_at`.
 - `GET /sessions/{session_id}/check-ins` — статус сессии, `present_count`, `student_count`, список отметившихся.
 - `POST /sessions/{session_id}/close` — закрытие сессии. Получение check-ins остаётся доступно после закрытия.
 
 Frontend запрашивает новый QR раз в 5 секунд. Каждый QR-токен действует 10 секунд. Список отметившихся обновляется polling-запросом раз в секунду.
+Сервер хранит только SHA-256 хеш QR-токена. Когда задан `MAX_BOT_NAME`, `deep_link` имеет вид `https://max.ru/<botName>?startapp=<token>`; без него локальный URL Mini App.
 
 ## Студент
 
@@ -25,6 +28,18 @@ Frontend запрашивает новый QR раз в 5 секунд. Кажд
 - `POST /check-ins` с `{ "qr_token": "..." }` — подтверждение присутствия.
 
 Поддерживаемые статусы контекста: `available`, `expired`, `session_closed`, `not_enrolled`, `already_checked_in`.
+После 30 минут от `started_at` новая отметка получает `attendance_status: "late"`, до этого — `"present"`. Элементы списка дополнительно содержат `attendance_status` и `source` (`qr` или `manual`); существующий frontend может игнорировать эти поля.
+
+## P1 API преподавателя
+
+- `POST /sessions/{session_id}/check-ins/manual` с `{ "student_id": "...", "action": "add|remove|set_status", "attendance_status": "present|late", "reason": "..." }`. Для `set_status` поле `attendance_status` обязательно; причина обязательна всегда. Работает и после закрытия занятия, возвращает обновлённый список.
+- `GET /sessions/{session_id}/audit` и `GET /groups/{group_id}/audit` — журнал действий и ручных исправлений.
+- `GET /groups/{group_id}/sessions?limit=50&offset=0` — история занятий.
+- `GET /sessions/{session_id}/export.csv` — CSV итогов, включая отсутствующих. Кодировка UTF-8 с BOM.
+- `POST /groups/{group_id}/enrollments/import` — multipart-файл CSV с заголовками `max_user_id,display_name`; возвращает `imported` и `already_enrolled`.
+- `GET /groups/{group_id}/stats` — сводные количества сессий и отметок, средний процент посещаемости.
+
+Все операции доступны только преподавателю соответствующей группы. Текущий frontend пока не вызывает P1 API; P1-экраны находятся в зоне frontend-команды.
 
 ## Формат ошибки
 
@@ -45,5 +60,6 @@ Frontend принимает решения по стабильному полю 
 - `QR_TOKEN_INVALID`, `QR_TOKEN_EXPIRED`;
 - `STUDENT_NOT_ENROLLED`, `ALREADY_CHECKED_IN`;
 - `VALIDATION_ERROR`, `INTERNAL_ERROR`.
+- `RATE_LIMITED` для `429`.
 
-HTTP-статусы: `400` для невалидного/просроченного QR, `401` для недействительной авторизации, `403` для недостаточных прав, `404` для отсутствующих ресурсов, `409` для конфликта состояния, `422` для невалидного тела и `500` для внутренней ошибки.
+HTTP-статусы: `400` для невалидного/просроченного QR, `401` для недействительной авторизации, `403` для недостаточных прав, `404` для отсутствующих ресурсов, `409` для конфликта состояния, `422` для невалидного тела, `429` для превышения лимита и `500` для внутренней ошибки.
