@@ -1,0 +1,50 @@
+name: Backend checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: attendance_test
+          POSTGRES_USER: attendance
+          POSTGRES_PASSWORD: attendance_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U attendance -d attendance_test"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      JWT_SECRET: test-only-secret-longer-than-thirty-two-characters
+      DATABASE_URL: postgresql+psycopg://attendance:attendance_test@localhost:5432/attendance_test
+      TEST_POSTGRES_URL: postgresql+psycopg://attendance:attendance_test@localhost:5432/attendance_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e '.[test]'
+        working-directory: backend
+      - run: alembic upgrade head
+        working-directory: backend
+      - run: alembic check
+        working-directory: backend
+      - run: pytest -q
+        working-directory: backend
+      - run: python scripts/export_openapi.py
+        working-directory: backend
+      - run: git diff --exit-code -- docs/openapi.json
+
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t max-attendance-backend ./backend
+      - run: docker build -t max-attendance-frontend ./frontend
