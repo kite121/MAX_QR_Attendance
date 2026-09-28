@@ -16,10 +16,10 @@ from app.database import get_db
 from app.errors import AppError
 from app.models import AuditEvent, AttendanceSession, CheckIn, Enrollment, User, utc_now
 from app.schemas import (
-    AuditItemOut, AuditOut, CheckInsOut, GroupStatsOut, HistoryOut, ImportOut, ManualCorrectionIn,
+    ATTENDANCE_ERROR_RESPONSES, AuditItemOut, AuditOut, CheckInsOut, GroupStatsOut, HistoryOut, ImportOut, ManualCorrectionIn,
 )
 
-router = APIRouter(prefix="/api/v1", tags=["teacher P1"])
+router = APIRouter(prefix="/api/v1", tags=["teacher P1"], responses=ATTENDANCE_ERROR_RESPONSES)
 
 
 @router.get("/groups/{group_id}/sessions", response_model=HistoryOut)
@@ -125,7 +125,10 @@ def csv_safe(value: str | None) -> str:
     return "'" + text if text.lstrip().startswith(("=", "+", "-", "@", "\t", "\r")) else text
 
 
-@router.get("/sessions/{session_id}/export.csv")
+@router.get(
+    "/sessions/{session_id}/export.csv", response_class=Response,
+    responses={200: {"description": "Итоговый CSV в UTF-8 с BOM", "content": {"text/csv": {"schema": {"type": "string"}}}}},
+)
 def export_csv(session_id: str, db: Session = Depends(get_db), teacher: User = Depends(require_teacher)):
     session = require_session(db, session_id, teacher)
     rows = db.execute(

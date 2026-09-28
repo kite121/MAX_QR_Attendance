@@ -1,7 +1,33 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+class ApiErrorDetail(BaseModel):
+    code: str
+    message: str
+    details: Any | None = None
+
+
+class ApiErrorBody(BaseModel):
+    error: ApiErrorDetail
+
+
+COMMON_ERROR_RESPONSES = {
+    401: {"model": ApiErrorBody, "description": "Недействительная авторизация"},
+    403: {"model": ApiErrorBody, "description": "Недостаточно прав"},
+    422: {"model": ApiErrorBody, "description": "Ошибка валидации запроса"},
+    429: {"model": ApiErrorBody, "description": "Превышен лимит запросов"},
+    500: {"model": ApiErrorBody, "description": "Внутренняя ошибка сервера"},
+}
+
+ATTENDANCE_ERROR_RESPONSES = {
+    **COMMON_ERROR_RESPONSES,
+    400: {"model": ApiErrorBody, "description": "Недействительный или просроченный QR"},
+    404: {"model": ApiErrorBody, "description": "Ресурс не найден"},
+    409: {"model": ApiErrorBody, "description": "Конфликт состояния или повторная отметка"},
+}
 
 
 class UserOut(BaseModel):

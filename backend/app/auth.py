@@ -14,9 +14,12 @@ from app.config import Settings, get_settings
 from app.database import get_db
 from app.errors import AppError
 from app.models import User
-from app.schemas import AuthOut, MaxAuthIn, MockAuthIn, UserOut
+from app.schemas import ApiErrorBody, AuthOut, COMMON_ERROR_RESPONSES, MaxAuthIn, MockAuthIn, UserOut
 
-router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+router = APIRouter(
+    prefix="/api/v1/auth", tags=["auth"],
+    responses={**COMMON_ERROR_RESPONSES, 503: {"model": ApiErrorBody, "description": "MAX не настроен"}},
+)
 bearer = HTTPBearer(auto_error=False)
 DEMO_LOGIN_IDS = {
     "teacher.demo": "teacher-elena",

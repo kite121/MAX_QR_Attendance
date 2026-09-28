@@ -14,12 +14,12 @@ from app.database import get_db
 from app.errors import AppError
 from app.models import AuditEvent, AttendanceSession, CheckIn, Enrollment, Group, QrToken, TeacherGroup, User, utc_now
 from app.schemas import (
-    CheckInContextOut, CheckInIn, CheckInItemOut, CheckInOut, CheckInsOut,
+    ATTENDANCE_ERROR_RESPONSES, CheckInContextOut, CheckInIn, CheckInItemOut, CheckInOut, CheckInsOut,
     CreateGroupIn, CreateSessionIn, EnrollStudentIn, GroupOut, GroupsOut,
     QrTokenOut, SessionOut, StudentOut, StudentsOut,
 )
 
-router = APIRouter(prefix="/api/v1", tags=["attendance"])
+router = APIRouter(prefix="/api/v1", tags=["attendance"], responses=ATTENDANCE_ERROR_RESPONSES)
 
 
 def aware(value: datetime) -> datetime:
