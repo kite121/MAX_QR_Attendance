@@ -1,14 +1,20 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../features/auth/AuthProvider';
 import { DevLoginPage } from '../pages/DevLoginPage';
-import { StudentPlaceholderPage } from '../pages/StudentPlaceholderPage';
+import { StudentCheckInPage } from '../pages/StudentCheckInPage';
 import { TeacherHomePage } from '../pages/TeacherHomePage';
 import { TeacherSessionPage } from '../pages/TeacherSessionPage';
 import { StateView } from '../shared/ui/StateView';
 
 export function AppRouter() {
   const { status, user } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname, status, user?.id]);
 
   if (status === 'loading') {
     return (
@@ -54,7 +60,7 @@ export function AppRouter() {
         path="/student/*"
         element={
           user.role === 'student' ? (
-            <StudentPlaceholderPage />
+            <StudentCheckInPage />
           ) : (
             <Navigate to={homePath} replace />
           )
