@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: attendance
+      POSTGRES_USER: attendance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-attendance-password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance -d attendance"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+psycopg://attendance:${POSTGRES_PASSWORD:-local-attendance-password}@db:5432/attendance
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-replace-for-production-2026}
+      ENABLE_MOCK_AUTH: ${ENABLE_MOCK_AUTH:-true}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-baam-demo}
+      DEMO_TEACHER_MAX_USER_ID: ${DEMO_TEACHER_MAX_USER_ID:-10001}
+      BOOTSTRAP_TEACHER_MAX_USER_ID: ${BOOTSTRAP_TEACHER_MAX_USER_ID:-}
+      BOOTSTRAP_TEACHER_NAME: ${BOOTSTRAP_TEACHER_NAME:-Тестовый преподаватель}
+      BOOTSTRAP_GROUP_NAME: ${BOOTSTRAP_GROUP_NAME:-Тестовая группа}
+      MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:-}
+      MAX_BOT_NAME: ${MAX_BOT_NAME:-}
+      DEV_MINI_APP_URL: ${DEV_MINI_APP_URL:-http://localhost:8080/student/check-in}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  postgres_data:

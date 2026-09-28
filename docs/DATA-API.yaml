@@ -1,0 +1,48 @@
+version: 1
+description: Synthetic test data and API acceptance scenarios for MAX QR Attendance
+base_path: /api/v1
+openapi: openapi.json
+local_demo:
+  frontend_url: http://localhost:8080
+  backend_url: http://localhost:8000
+  password_env: DEMO_PASSWORD
+  accounts:
+    - login: teacher.demo
+      role: teacher
+      max_user_id: "10001"
+      group: group-ivt-21
+    - login: student.anna
+      role: student
+      max_user_id: "20001"
+      group: group-ivt-21
+    - login: student.kirill
+      role: student
+      max_user_id: "20002"
+      group: group-ivt-21
+    - login: student.outsider
+      role: student
+      max_user_id: "20003"
+      group: group-pmi-22
+  groups:
+    - id: group-ivt-21
+      name: ИВТ-21
+      students: 2
+    - id: group-pmi-22
+      name: ПМИ-22
+      students: 1
+checks:
+  - id: happy_path
+    steps: [login_teacher, get_groups, create_session, get_qr, login_student, get_context, check_in, get_check_ins, close_session]
+    expect: one_check_in_and_closed_session
+  - id: duplicate
+    expect_error: ALREADY_CHECKED_IN
+  - id: expired_qr
+    expect_error: QR_TOKEN_EXPIRED
+  - id: outsider
+    expect_error: STUDENT_NOT_ENROLLED
+  - id: closed_session
+    expect_error: SESSION_CLOSED
+  - id: teacher_correction
+    steps: [manual_add, manual_set_status, manual_remove, get_audit]
+  - id: csv
+    steps: [import_students_csv, export_session_csv]

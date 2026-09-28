@@ -1,0 +1,31 @@
+[project]
+name = "max-qr-attendance-backend"
+version = "0.1.0"
+description = "Backend for MAX QR Attendance"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic==1.20.0",
+  "fastapi==0.141.1",
+  "psycopg[binary]==3.3.6",
+  "pydantic-settings==2.15.0",
+  "PyJWT==2.15.0",
+  "python-multipart==0.0.32",
+  "sqlalchemy==2.1.1",
+  "uvicorn[standard]==0.54.0",
+]
+
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[project.optional-dependencies]
+test = [
+  "httpx==0.28.1",
+  "pytest==9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
