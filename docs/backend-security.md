@@ -33,3 +33,7 @@
 - Проверить полную цепочку в MAX Mobile и MAX Web, включая `initData`, deep link и срок QR.
 - Проверить настройки логов reverse proxy, резервное копирование, ограничение доступа к БД и политику хранения.
 - Прогнать тесты и проверить историю Git и образы на секреты.
+
+## Зависимости
+
+Основные Python-зависимости зафиксированы по версиям в `backend/pyproject.toml`. По метаданным установленных пакетов: FastAPI, SQLAlchemy, Alembic, PyJWT и pydantic-settings — MIT; Uvicorn — BSD-3-Clause; python-multipart — Apache-2.0; psycopg и psycopg-binary — LGPL-3.0-only. Прямые зависимости frontend (MAX UI, React, React Query, React Router, qrcode.react) также имеют открытые лицензии по их `package.json`. Перед публичным распространением образа нужно отдельно проверить условия LGPL и полный список транзитивных пакетов; собственная лицензия проекта командой пока не выбрана.
