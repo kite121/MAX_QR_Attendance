@@ -21,7 +21,7 @@ export function AppRouter() {
       <main className="page-shell page-shell--centered">
         <StateView
           loading
-          title="Входим в baam max"
+          title="Входим в QR-отметку"
           description="Проверяем данные MAX…"
         />
       </main>

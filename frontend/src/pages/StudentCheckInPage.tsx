@@ -1,6 +1,6 @@
 import { Button } from '@maxhub/max-ui';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { queryKeys } from '../app/queryKeys';
 import { useAuth } from '../features/auth/AuthProvider';
@@ -31,7 +31,7 @@ function ResultState({ copy, actionLabel, onAction, lessonTitle }: ResultStatePr
       <div className="student-result__icon" aria-hidden="true">
         {copy.icon}
       </div>
-      <span className="eyebrow">baam max</span>
+      <span className="eyebrow">QR-отметка</span>
       <h1>{copy.title}</h1>
       {lessonTitle ? <strong>{lessonTitle}</strong> : null}
       <p>{copy.description}</p>
@@ -48,6 +48,7 @@ export function StudentCheckInPage() {
   const { accessToken, user } = useAuth();
   const [startParam] = useState(getStartParam);
   const [result, setResult] = useState<CheckInResult | null>(null);
+  const attemptedToken = useRef<string | null>(null);
   const now = useNow();
 
   const contextQuery = useQuery({
@@ -61,6 +62,20 @@ export function StudentCheckInPage() {
     mutationFn: () => api.checkIn(accessToken!, startParam!),
     onSuccess: setResult,
   });
+
+  const contextStatus = contextQuery.data?.status;
+  const submitCheckIn = checkInMutation.mutate;
+
+  useEffect(() => {
+    if (
+      startParam &&
+      contextStatus === 'available' &&
+      attemptedToken.current !== startParam
+    ) {
+      attemptedToken.current = startParam;
+      submitCheckIn();
+    }
+  }, [contextStatus, startParam, submitCheckIn]);
 
   if (!startParam) {
     return (
@@ -169,7 +184,7 @@ export function StudentCheckInPage() {
           copy={errorCopy}
           lessonTitle={context.lesson_title}
           actionLabel={errorCopy.tone === 'error' ? 'Повторить' : undefined}
-          onAction={() => checkInMutation.reset()}
+          onAction={() => checkInMutation.mutate()}
         />
       </main>
     );
@@ -178,44 +193,11 @@ export function StudentCheckInPage() {
   return (
     <main className="page-shell student-page">
       <AppHeader subtitle="Отметка посещаемости" />
-      <div className="student-checkin">
-        <section className="student-checkin__hero">
-          <span className="eyebrow">Вас ждут на занятии</span>
-          <h1>{context.lesson_title}</h1>
-          <p>Проверьте данные и подтвердите присутствие.</p>
-        </section>
-
-        <section className="surface-card lesson-card">
-          <dl>
-            <div>
-              <dt>Группа</dt>
-              <dd>{context.group_name}</dd>
-            </div>
-            <div>
-              <dt>Преподаватель</dt>
-              <dd>{context.teacher_name}</dd>
-            </div>
-            <div>
-              <dt>Студент</dt>
-              <dd>{user?.display_name}</dd>
-            </div>
-          </dl>
-          <div className="checkin-timer">
-            <span>QR действует ещё</span>
-            <strong>{secondsLeft} сек</strong>
-          </div>
-          <Button
-            size="large"
-            stretched
-            loading={checkInMutation.isPending}
-            onClick={() => checkInMutation.mutate()}
-          >
-            Подтвердить присутствие
-          </Button>
-        </section>
-
-        <p className="privacy-note">Отметка привязана к вашему аккаунту MAX.</p>
-      </div>
+      <StateView
+        loading
+        title="Отмечаем присутствие"
+        description={`${context.lesson_title} · ${context.group_name}. Ничего нажимать не нужно.`}
+      />
     </main>
   );
 }

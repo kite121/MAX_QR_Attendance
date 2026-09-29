@@ -1,52 +1,65 @@
 import { Button } from '@maxhub/max-ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
-import { useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { queryKeys } from '../app/queryKeys';
 import { useAuth } from '../features/auth/AuthProvider';
 import { AttendanceList } from '../features/teacher/AttendanceList';
+import { ManualAttendancePanel } from '../features/teacher/ManualAttendancePanel';
 import { api } from '../shared/api/api';
 import { isApiError } from '../shared/api/ApiError';
-import type { AttendanceSession, Group } from '../shared/api/types';
+import type { ManualCorrectionInput } from '../shared/api/types';
 import { formatLongDate } from '../shared/lib/date';
 import { useNow } from '../shared/lib/useNow';
 import { AppHeader } from '../shared/ui/AppHeader';
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog';
 import { StateView } from '../shared/ui/StateView';
 
-interface SessionLocationState {
-  session?: AttendanceSession;
-  group?: Group;
-}
-
 export function TeacherSessionPage() {
   const { sessionId = '' } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { accessToken } = useAuth();
   const now = useNow();
-  const { session, group } = (location.state ?? {}) as SessionLocationState;
   const [showCloseDialog, setShowCloseDialog] = useState(false);
-  const [closedSession, setClosedSession] = useState<AttendanceSession | null>(null);
   const [copyLabel, setCopyLabel] = useState('Скопировать ссылку');
+  const [correctionSuccess, setCorrectionSuccess] = useState('');
+
+  const sessionQuery = useQuery({
+    queryKey: queryKeys.session(sessionId),
+    queryFn: ({ signal }) => api.getSession(accessToken!, sessionId, signal),
+    enabled: Boolean(accessToken && sessionId),
+  });
+
+  const groupsQuery = useQuery({
+    queryKey: queryKeys.groups,
+    queryFn: ({ signal }) => api.getGroups(accessToken!, signal),
+    enabled: Boolean(accessToken),
+  });
+
+  const groupId = sessionQuery.data?.group_id ?? '';
+  const studentsQuery = useQuery({
+    queryKey: queryKeys.groupStudents(groupId),
+    queryFn: ({ signal }) => api.getGroupStudents(accessToken!, groupId, signal),
+    enabled: Boolean(accessToken && groupId),
+  });
 
   const checkInsQuery = useQuery({
     queryKey: queryKeys.checkIns(sessionId),
     queryFn: ({ signal }) => api.getCheckIns(accessToken!, sessionId, signal),
     enabled: Boolean(accessToken && sessionId),
-    refetchInterval: closedSession ? false : 1_000,
+    refetchInterval: (query) => (query.state.data?.status === 'closed' ? false : 1_000),
   });
 
   const isClosed =
-    closedSession?.status === 'closed' || checkInsQuery.data?.status === 'closed';
+    sessionQuery.data?.status === 'closed' || checkInsQuery.data?.status === 'closed';
 
   const qrQuery = useQuery({
     queryKey: queryKeys.qrToken(sessionId),
     queryFn: () => api.getQrToken(accessToken!, sessionId),
-    enabled: Boolean(accessToken && sessionId && !isClosed),
+    enabled: Boolean(accessToken && sessionId && sessionQuery.data && !isClosed),
     refetchInterval: 5_000,
     staleTime: 0,
     retry: 1,
@@ -55,10 +68,43 @@ export function TeacherSessionPage() {
   const closeSession = useMutation({
     mutationFn: () => api.closeSession(accessToken!, sessionId),
     onSuccess: async (result) => {
-      setClosedSession(result);
+      queryClient.setQueryData(queryKeys.session(sessionId), result);
       setShowCloseDialog(false);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.checkIns(sessionId) });
       queryClient.removeQueries({ queryKey: queryKeys.qrToken(sessionId) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.checkIns(sessionId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.sessions(result.group_id) }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.activeSession(result.group_id),
+        }),
+      ]);
+    },
+  });
+
+  const correction = useMutation({
+    mutationFn: (input: ManualCorrectionInput) =>
+      api.correctCheckIn(accessToken!, sessionId, input),
+    onMutate: () => setCorrectionSuccess(''),
+    onSuccess: async (result) => {
+      queryClient.setQueryData(queryKeys.checkIns(sessionId), result);
+      setCorrectionSuccess('Изменение сохранено');
+      if (groupId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.sessions(groupId) });
+      }
+    },
+  });
+
+  const exportCsv = useMutation({
+    mutationFn: () => api.exportSessionCsv(accessToken!, sessionId),
+    onSuccess: (blob) => {
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = href;
+      anchor.download = `attendance-${sessionId}.csv`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(href);
     },
   });
 
@@ -66,10 +112,8 @@ export function TeacherSessionPage() {
     ? Math.max(0, Math.ceil((new Date(qrQuery.data.expires_at).getTime() - now) / 1_000))
     : 0;
   const progress = Math.min(100, (secondsLeft / 10) * 100);
-
-  const title = session?.title ?? 'Активное занятие';
-  const groupName = group?.name ?? 'Учебная группа';
-  const finalItems = useMemo(() => checkInsQuery.data?.items ?? [], [checkInsQuery.data]);
+  const session = sessionQuery.data;
+  const group = groupsQuery.data?.items.find((item) => item.id === groupId);
 
   async function copyDeepLink() {
     if (!qrQuery.data) return;
@@ -82,19 +126,46 @@ export function TeacherSessionPage() {
     window.setTimeout(() => setCopyLabel('Скопировать ссылку'), 1_800);
   }
 
-  if (!sessionId) {
+  if (!sessionId || sessionQuery.isError) {
     return (
       <main className="page-shell">
         <AppHeader subtitle="Кабинет преподавателя" />
         <StateView
           icon="!"
           title="Сессия не найдена"
+          description="Она могла быть удалена или недоступна этому преподавателю."
           actionLabel="К списку групп"
           onAction={() => navigate('/teacher')}
         />
       </main>
     );
   }
+
+  if (sessionQuery.isPending || !session) {
+    return (
+      <main className="page-shell">
+        <AppHeader subtitle="Кабинет преподавателя" />
+        <StateView loading title="Восстанавливаем занятие" />
+      </main>
+    );
+  }
+
+  const correctionError = correction.isError
+    ? isApiError(correction.error)
+      ? correction.error.message
+      : 'Не удалось сохранить изменение'
+    : undefined;
+
+  const correctionPanel = (
+    <ManualAttendancePanel
+      students={studentsQuery.data?.items ?? []}
+      checkIns={checkInsQuery.data?.items ?? []}
+      pending={correction.isPending}
+      error={correctionError}
+      success={correctionSuccess}
+      onSubmit={(input) => correction.mutate(input)}
+    />
+  );
 
   if (isClosed) {
     return (
@@ -106,21 +177,29 @@ export function TeacherSessionPage() {
               ✓
             </div>
             <span className="eyebrow">Сессия завершена</span>
-            <h1>{title}</h1>
+            <h1>{session.title}</h1>
             <p>
-              {groupName} ·{' '}
-              {session?.started_at
-                ? formatLongDate(session.started_at)
-                : 'итоговый список'}
+              {group?.name ?? 'Учебная группа'} · {formatLongDate(session.started_at)}
             </p>
             <div className="result-count">
               <strong>
-                {checkInsQuery.data?.present_count ?? closedSession?.present_count ?? 0}
+                {checkInsQuery.data?.present_count ?? session.present_count ?? 0}
               </strong>
               <span>
                 из {checkInsQuery.data?.student_count ?? group?.student_count ?? 0}
               </span>
             </div>
+            <Button
+              size="large"
+              variant="secondary"
+              loading={exportCsv.isPending}
+              onClick={() => exportCsv.mutate()}
+            >
+              Скачать CSV
+            </Button>
+            {exportCsv.isError ? (
+              <div className="notice notice--error">Не удалось скачать CSV.</div>
+            ) : null}
           </section>
 
           <section className="surface-card final-list-card">
@@ -130,11 +209,12 @@ export function TeacherSessionPage() {
                 <h2>Присутствующие</h2>
               </div>
             </div>
-            <AttendanceList items={finalItems} final />
+            <AttendanceList items={checkInsQuery.data?.items ?? []} final />
           </section>
 
+          <div className="session-tools">{correctionPanel}</div>
           <Button size="large" variant="secondary" onClick={() => navigate('/teacher')}>
-            Новое занятие
+            К истории занятий
           </Button>
         </div>
       </main>
@@ -150,19 +230,23 @@ export function TeacherSessionPage() {
             <span className="status-pill">
               <span aria-hidden="true" /> Активно
             </span>
-            <h1>{title}</h1>
+            <h1>{session.title}</h1>
             <p>
-              {groupName}
-              {session?.started_at ? ` · ${formatLongDate(session.started_at)}` : ''}
+              {group?.name ?? 'Учебная группа'} · {formatLongDate(session.started_at)}
             </p>
           </div>
-          <Button
-            size="large"
-            variant="destructive"
-            onClick={() => setShowCloseDialog(true)}
-          >
-            Завершить
-          </Button>
+          <div className="session-heading__actions">
+            <Button variant="secondary" onClick={() => exportCsv.mutate()}>
+              Скачать CSV
+            </Button>
+            <Button
+              size="large"
+              variant="destructive"
+              onClick={() => setShowCloseDialog(true)}
+            >
+              Завершить
+            </Button>
+          </div>
         </section>
 
         <div className="session-grid">
@@ -241,12 +325,14 @@ export function TeacherSessionPage() {
             )}
           </section>
         </div>
+
+        <div className="session-tools">{correctionPanel}</div>
       </div>
 
       <ConfirmDialog
         open={showCloseDialog}
         title="Завершить занятие?"
-        description="После завершения новые отметки будут недоступны. Итоговый список сохранится."
+        description="Новые отметки по QR станут недоступны. Итоги и ручные корректировки сохранятся."
         confirmLabel="Завершить"
         pending={closeSession.isPending}
         error={
