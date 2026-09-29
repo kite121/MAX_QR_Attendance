@@ -74,7 +74,7 @@ test('student checks in automatically and teacher sees the real backend result',
   await teacherPage.getByRole('button', { name: 'Продолжить' }).click();
   await expect(teacherPage.getByRole('heading', { name: lessonTitle })).toBeVisible();
   const attendanceItem = teacherPage
-    .getByRole('listitem')
+    .locator('.attendance-list > li')
     .filter({ hasText: 'Анна Смирнова' });
   await expect(attendanceItem).toContainText('Вовремя');
   await teacherPage.getByRole('button', { name: 'Завершить' }).click();
@@ -86,4 +86,28 @@ test('student checks in automatically and teacher sees the real backend result',
 
   await studentContext.close();
   await teacherContext.close();
+});
+
+test('teacher imports a roster through the real backend and sees stats and audit', async ({
+  page,
+}) => {
+  const maxUserId = String(Date.now());
+  const displayName = `E2E Student ${maxUserId}`;
+  await page.goto('/');
+  await loginInBrowser(page, /Елена · преподаватель/i);
+  await expect(page.getByRole('heading', { name: 'Студенты' })).toBeVisible();
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'e2e-roster.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(`max_user_id,display_name\n${maxUserId},"${displayName}"`),
+  });
+
+  await expect(page.getByText(/Импорт завершён: добавлено 1/)).toBeVisible();
+  await expect(page.getByText(displayName)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Аудит группы' })).toBeVisible();
+  await expect(page.getByText('Импортирован состав группы').first()).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Посещаемость', exact: true }),
+  ).toBeVisible();
 });
