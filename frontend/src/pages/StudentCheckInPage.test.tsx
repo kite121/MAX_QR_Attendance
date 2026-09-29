@@ -30,7 +30,7 @@ describe('student automatic check-in', () => {
 
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: /Анна · ИВТ-21/i }));
+    await user.click(await screen.findByRole('button', { name: /Анна · ИВТ-21/i }));
     await user.click(screen.getByRole('button', { name: 'Войти' }));
 
     expect(await screen.findByRole('heading', { name: 'Вы отметились' })).toBeVisible();

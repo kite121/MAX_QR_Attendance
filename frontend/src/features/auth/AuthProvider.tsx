@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { api } from '../../shared/api/api';
+import { isApiError } from '../../shared/api/ApiError';
 import type { User } from '../../shared/api/types';
 import { getMaxInitData } from '../../shared/lib/maxBridge';
 
@@ -22,6 +23,7 @@ interface AuthContextValue {
   status: AuthStatus;
   error: string | null;
   loginMock: (login: string, password: string) => Promise<void>;
+  retryMaxAuth: () => Promise<void>;
   logout: () => void;
 }
 
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
   const [initData] = useState(getMaxInitData);
   const attemptedMaxAuth = useRef(false);
+  const authAttempt = useRef(0);
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [status, setStatus] = useState<AuthStatus>(initData ? 'loading' : 'anonymous');
@@ -43,21 +46,41 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setStatus('authenticated');
   }, []);
 
+  const retryMaxAuth = useCallback(async () => {
+    const attempt = ++authAttempt.current;
+    const currentInitData = getMaxInitData();
+    if (!currentInitData) {
+      setError('Закройте приложение и откройте его заново через MAX.');
+      setStatus('anonymous');
+      return;
+    }
+
+    setError(null);
+    setStatus('loading');
+    try {
+      const response = await api.authMax(currentInitData);
+      if (attempt === authAttempt.current)
+        applyAuth(response.access_token, response.user);
+    } catch (authError: unknown) {
+      if (attempt !== authAttempt.current) return;
+      const expired =
+        isApiError(authError) &&
+        (authError.code === 'INVALID_INIT_DATA' ||
+          authError.code === 'INIT_DATA_EXPIRED');
+      setError(
+        expired
+          ? 'Не удалось подтвердить вход. Закройте приложение и откройте его заново в MAX.'
+          : 'Вход временно недоступен. Проверьте соединение и попробуйте ещё раз.',
+      );
+      setStatus('anonymous');
+    }
+  }, [applyAuth]);
+
   useEffect(() => {
     if (attemptedMaxAuth.current) return;
     attemptedMaxAuth.current = true;
-    if (!initData) return;
-
-    void api
-      .authMax(initData)
-      .then((response) => applyAuth(response.access_token, response.user))
-      .catch((authError: unknown) => {
-        setError(
-          authError instanceof Error ? authError.message : 'Не удалось войти через MAX',
-        );
-        setStatus('anonymous');
-      });
-  }, [applyAuth, initData]);
+    if (initData) void Promise.resolve().then(retryMaxAuth);
+  }, [initData, retryMaxAuth]);
 
   const loginMock = useCallback(
     async (login: string, password: string) => {
@@ -69,6 +92,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const logout = useCallback(() => {
+    authAttempt.current += 1;
     setAccessToken(null);
     setUser(null);
     setError(null);
@@ -77,8 +101,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [queryClient]);
 
   const value = useMemo(
-    () => ({ user, accessToken, status, error, loginMock, logout }),
-    [accessToken, error, loginMock, logout, status, user],
+    () => ({ user, accessToken, status, error, loginMock, retryMaxAuth, logout }),
+    [accessToken, error, loginMock, retryMaxAuth, logout, status, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -26,6 +26,7 @@ htmlcov/
 # JavaScript / TypeScript
 node_modules/
 dist/
+dist-demo/
 build/
 coverage/
 playwright-report/
