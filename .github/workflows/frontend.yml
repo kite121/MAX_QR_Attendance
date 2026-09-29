@@ -1,0 +1,51 @@
+name: Frontend checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+        env:
+          VITE_API_URL: /api/v1
+          # Even an accidental mock flag must not enable demo code in production.
+          VITE_USE_MOCK_API: "true"
+      - run: npm run check:production
+      - run: npx playwright install --with-deps chromium
+      - name: Start synthetic integration stack
+        working-directory: .
+        run: docker compose -p maxqr-frontend-ci --env-file .env.acceptance.example up --build --wait --wait-timeout 120
+      - run: npm run test:e2e
+        env:
+          E2E_API_URL: http://127.0.0.1:18000/api/v1
+          E2E_BASE_URL: http://127.0.0.1:18080
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: frontend-test-results
+          path: frontend/test-results/
+          retention-days: 7
+      - name: Stop integration stack
+        if: always()
+        working-directory: .
+        run: docker compose -p maxqr-frontend-ci --env-file .env.acceptance.example down
