@@ -16,7 +16,7 @@ This is a preparation checklist, not proof of a deployed release. Fill in the pu
 4. Ensure the external HTTPS proxy does not log query strings or headers containing `startapp`, `WebAppStartParam`, JWT or bot tokens. Mini App nginx access logs are disabled; the outer proxy must be reviewed separately.
 5. Set the bot's Mini App URL to the public HTTPS origin in MAX partner settings. Check the signed `initData` login and `startapp` deep link in MAX Mobile and MAX Web, not only in a normal browser.
 6. Prepare the synthetic roster using [`max-test-roster.md`](max-test-roster.md). Run the full teacher/student acceptance matrix, including duplicate, expired and closed QR, manual correction, history and CSV. Verify records in PostgreSQL and after a container restart.
-7. Verify `https://<public-host>/healthz` and `https://<public-host>/api/v1/openapi.json` externally. Replace the local placeholder structure in `DATA-API.yaml` with the confirmed public base URL and tested request/response examples.
+7. Verify `https://<public-host>/healthz` and `https://<public-host>/api/v1/openapi.json` externally. Use [`DATA-API.draft.yaml`](DATA-API.draft.yaml) as the method/role/response checklist, then replace `DATA-API.yaml` with confirmed public URLs, test-account access instructions and observed responses. The draft is not a submission artifact.
 8. Create at least one recoverable PostgreSQL backup and test a restore before real pilot data is used. Keep the database volume across ordinary deployments; do not run `docker compose down -v` on a release installation.
 
 ## Known limitations to disclose

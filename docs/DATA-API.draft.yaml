@@ -1,0 +1,198 @@
+# Draft only. Do not submit this file: the public HTTPS URL, test accounts and
+# observed responses must be filled in after deployment in docs/DATA-API.yaml.
+version: 1
+name: QR-отметка
+base_url: null
+openapi_path: /api/v1/openapi.json
+test_data:
+  teacher_jwt: private_short_lived_token_from_signed_MAX_login
+  enrolled_student_jwt: private_short_lived_token_from_signed_MAX_login
+  second_student_jwt: private_short_lived_token_from_signed_MAX_login
+  second_student_id: enrolled_test_student_id
+  unlisted_student_jwt: private_short_lived_token_from_signed_MAX_login
+  group_id: prepared_synthetic_group
+  session_id: created_by_create_session_check
+  qr_token: created_by_create_qr_check
+  fresh_qr_token: separately_issued_immediately_before_close
+  expired_qr_token: separately_issued_and_allowed_to_expire
+  init_data: signed_data_from_MAX_Mini_App_not_committed_to_Git
+checks:
+  - id: health
+    method: GET
+    path: /healthz
+    role: anonymous
+    request: {}
+    expected: {status: 200, content_type: application/json, required_fields: [status]}
+
+  - id: openapi
+    method: GET
+    path: /api/v1/openapi.json
+    role: anonymous
+    request: {}
+    expected: {status: 200, content_type: application/json, required_fields: [openapi, paths]}
+
+  - id: max_login
+    method: POST
+    path: /api/v1/auth/max
+    role: MAX_user
+    request:
+      headers: {Content-Type: application/json}
+      body: {init_data: "${init_data}"}
+    expected: {status: 200, content_type: application/json, required_fields: [access_token, user.id, user.max_user_id, user.role]}
+
+  - id: teacher_groups
+    method: GET
+    path: /api/v1/groups
+    role: teacher
+    request:
+      headers: {Authorization: "Bearer ${teacher_jwt}"}
+    expected: {status: 200, content_type: application/json, required_fields: [items]}
+
+  - id: group_students
+    method: GET
+    path: /api/v1/groups/{group_id}/students
+    role: teacher
+    request:
+      path_params: {group_id: "${group_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}"}
+    expected: {status: 200, content_type: application/json, required_fields: [items]}
+
+  - id: create_session
+    method: POST
+    path: /api/v1/groups/{group_id}/sessions
+    role: teacher
+    request:
+      path_params: {group_id: "${group_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}", Content-Type: application/json}
+      body: {title: Приёмочное занятие}
+    expected: {status: 200, content_type: application/json, required_fields: [id, group_id, status, started_at]}
+
+  - id: create_qr
+    method: POST
+    path: /api/v1/sessions/{session_id}/qr-token
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}"}
+    expected: {status: 200, content_type: application/json, required_fields: [token, deep_link, expires_at]}
+
+  - id: check_in_context
+    method: GET
+    path: /api/v1/check-in/context
+    role: enrolled_student
+    request:
+      query: {token: "${qr_token}"}
+      headers: {Authorization: "Bearer ${enrolled_student_jwt}"}
+    expected: {status: 200, content_type: application/json, required_fields: [session_id, status, expires_at]}
+
+  - id: check_in
+    method: POST
+    path: /api/v1/check-ins
+    role: enrolled_student
+    request:
+      headers: {Authorization: "Bearer ${enrolled_student_jwt}", Content-Type: application/json}
+      body: {qr_token: "${qr_token}"}
+    expected: {status: 200, content_type: application/json, required_fields: [status, checked_in_at, session_id]}
+
+  - id: duplicate_check_in
+    method: POST
+    path: /api/v1/check-ins
+    role: enrolled_student
+    request:
+      headers: {Authorization: "Bearer ${enrolled_student_jwt}", Content-Type: application/json}
+      body: {qr_token: "${qr_token}"}
+    expected: {status: 409, content_type: application/json, error_code: ALREADY_CHECKED_IN}
+
+  - id: unlisted_student_check_in
+    method: POST
+    path: /api/v1/check-ins
+    role: unlisted_student
+    request:
+      headers: {Authorization: "Bearer ${unlisted_student_jwt}", Content-Type: application/json}
+      body: {qr_token: "${qr_token}"}
+    expected: {status: 403, content_type: application/json, error_code: STUDENT_NOT_ENROLLED}
+
+  - id: expired_qr
+    method: POST
+    path: /api/v1/check-ins
+    role: second_student
+    precondition: Issue a separate QR token and wait until its expires_at before submitting.
+    request:
+      headers: {Authorization: "Bearer ${second_student_jwt}", Content-Type: application/json}
+      body: {qr_token: "${expired_qr_token}"}
+    expected: {status: 400, content_type: application/json, error_code: QR_TOKEN_EXPIRED}
+
+  - id: session_check_ins
+    method: GET
+    path: /api/v1/sessions/{session_id}/check-ins
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}"}
+    expected: {status: 200, content_type: application/json, required_fields: [session_id, present_count, student_count, items]}
+
+  - id: close_session
+    method: POST
+    path: /api/v1/sessions/{session_id}/close
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}"}
+    expected: {status: 200, content_type: application/json, required_fields: [id, status, closed_at]}
+
+  - id: closed_session_check_in
+    method: POST
+    path: /api/v1/check-ins
+    role: second_student
+    precondition: Issue fresh_qr_token immediately before close_session and send this request before the token expires.
+    request:
+      headers: {Authorization: "Bearer ${second_student_jwt}", Content-Type: application/json}
+      body: {qr_token: "${fresh_qr_token}"}
+    expected: {status: 409, content_type: application/json, error_code: SESSION_CLOSED}
+
+  - id: manual_add_after_close
+    method: POST
+    path: /api/v1/sessions/{session_id}/check-ins/manual
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}", Content-Type: application/json}
+      body: {student_id: "${second_student_id}", action: add, reason: Студент без интернета}
+    expected: {status: 200, content_type: application/json, required_fields: [session_id, present_count, items]}
+
+  - id: session_audit
+    method: GET
+    path: /api/v1/sessions/{session_id}/audit
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}"}
+    expected: {status: 200, content_type: application/json, required_fields: [items]}
+
+  - id: group_history
+    method: GET
+    path: /api/v1/groups/{group_id}/sessions
+    role: teacher
+    request:
+      path_params: {group_id: "${group_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}"}
+    expected: {status: 200, content_type: application/json, required_fields: [items]}
+
+  - id: export_csv
+    method: GET
+    path: /api/v1/sessions/{session_id}/export.csv
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}"}
+    expected: {status: 200, content_type: text/csv, csv_columns: [student_id, max_user_id, display_name, status, checked_in_at, source]}
+
+  - id: manual_remove_after_close
+    method: POST
+    path: /api/v1/sessions/{session_id}/check-ins/manual
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_jwt}", Content-Type: application/json}
+      body: {student_id: "${second_student_id}", action: remove, reason: Ошибочная ручная отметка}
+    expected: {status: 200, content_type: application/json, required_fields: [session_id, present_count, items]}
