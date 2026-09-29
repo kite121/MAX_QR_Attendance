@@ -5,7 +5,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AttendanceSession
+from app.auth import issue_access_token
+from app.models import AttendanceSession, TeacherGroup, User
 from conftest import login
 
 
@@ -97,3 +98,33 @@ def test_late_after_30_minutes(client, db_engine):
     assert response.status_code == 200
     checkins = client.get(f"/api/v1/sessions/{session_id}/check-ins", headers=teacher)
     assert checkins.json()["items"][0]["attendance_status"] == "late"
+
+
+def test_other_teacher_cannot_read_or_correct_session(client, db_engine, settings):
+    owner = login(client, "teacher.demo")
+    session_id = client.post(
+        "/api/v1/groups/group-ivt-21/sessions", headers=owner, json={"title": "Закрытое занятие"},
+    ).json()["id"]
+    client.post(f"/api/v1/sessions/{session_id}/close", headers=owner)
+
+    with Session(db_engine) as db:
+        other = User(id="teacher-other", max_user_id="30009", display_name="Другой преподаватель", role="teacher")
+        db.add(other)
+        db.add(TeacherGroup(teacher_id=other.id, group_id="group-pmi-22"))
+        db.commit()
+        foreign = {"Authorization": f"Bearer {issue_access_token(other, settings)}"}
+
+    correction = client.post(
+        f"/api/v1/sessions/{session_id}/check-ins/manual", headers=foreign,
+        json={"student_id": "student-anna", "action": "add", "reason": "Попытка чужой правки"},
+    )
+    assert correction.status_code == 404
+    assert correction.json()["error"]["code"] == "SESSION_NOT_FOUND"
+    for path in (
+        f"/api/v1/sessions/{session_id}",
+        f"/api/v1/sessions/{session_id}/check-ins",
+        f"/api/v1/sessions/{session_id}/audit",
+        f"/api/v1/sessions/{session_id}/export.csv",
+    ):
+        assert client.get(path, headers=foreign).status_code == 404
+    assert client.get(f"/api/v1/sessions/{session_id}/check-ins", headers=owner).json()["present_count"] == 0
