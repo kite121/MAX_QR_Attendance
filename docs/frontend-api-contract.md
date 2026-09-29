@@ -5,7 +5,7 @@
 ## Авторизация
 
 - `POST /auth/max` с `{ "init_data": "..." }`.
-- `POST /auth/mock` с `{ "login": "...", "password": "..." }` — только dev/demo.
+- `POST /auth/mock` с `{ "login": "...", "password": "..." }` — только dev/demo; публичная сборка frontend исключает этот вызов и тестовые аккаунты из bundle.
 - Оба endpoint возвращают `access_token`, `token_type: "bearer"` и пользователя с `id`, `max_user_id`, `display_name`, `role`.
 - Роль определяет backend. Access token frontend хранит только в памяти.
 
