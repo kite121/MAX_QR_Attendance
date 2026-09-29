@@ -15,7 +15,7 @@ import { AuditLog } from '../shared/ui/AuditLog';
 import { StateView } from '../shared/ui/StateView';
 
 export function TeacherHomePage() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedGroupId, setSelectedGroupId] = useState('');
@@ -445,6 +445,7 @@ export function TeacherHomePage() {
                 <AuditLog
                   items={auditQuery.data.items}
                   students={studentsQuery.data?.items}
+                  currentUser={user}
                 />
               )}
             </section>

@@ -707,6 +707,7 @@ export const mockApi = {
     const existingIndex = database.checkIns.findIndex(
       (item) => item.sessionId === sessionId && item.student_id === student.id,
     );
+    const oldValue = database.checkIns[existingIndex]?.attendance_status ?? 'absent';
     if (input.action === 'add') {
       if (existingIndex >= 0) {
         throw new ApiError('ALREADY_CHECKED_IN', 'Студент уже отмечен', 409);
@@ -742,8 +743,9 @@ export const mockApi = {
       {
         subject_student_id: student.id,
         reason: input.reason.trim(),
+        old_value: oldValue,
         new_value:
-          input.action === 'remove' ? null : (input.attendance_status ?? 'present'),
+          input.action === 'remove' ? 'absent' : (input.attendance_status ?? 'present'),
       },
       session.id,
     );
