@@ -1,5 +1,6 @@
 from functools import lru_cache
 import re
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -8,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    environment: str = "development"
+    environment: Literal["development", "production"] = "development"
     database_url: str = "postgresql+psycopg://attendance:attendance@localhost:5432/attendance"
     jwt_secret: str = ""
     access_token_minutes: int = Field(default=30, ge=1, le=1440)

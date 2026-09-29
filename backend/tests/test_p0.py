@@ -100,6 +100,9 @@ def test_teacher_student_flow_and_guards(client, db_engine):
     again = client.post("/api/v1/check-ins", headers=anna, json={"qr_token": token})
     assert again.status_code == 409
     assert again.json()["error"]["code"] == "ALREADY_CHECKED_IN"
+    recovered = client.get("/api/v1/check-in/context", headers=anna, params={"token": token})
+    assert recovered.status_code == 200
+    assert recovered.json()["status"] == "already_checked_in"
     with Session(db_engine) as db:
         assert len(db.scalars(select(CheckIn).where(CheckIn.session_id == session_id)).all()) == 1
 
