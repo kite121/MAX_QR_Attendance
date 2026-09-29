@@ -45,6 +45,34 @@ export interface EnrollStudentInput {
   display_name: string;
 }
 
+export interface ImportStudentsResult {
+  imported: number;
+  already_enrolled: number;
+}
+
+export interface GroupStats {
+  group_id: string;
+  sessions_count: number;
+  closed_sessions_count: number;
+  total_check_ins: number;
+  average_attendance_percent: number;
+}
+
+export interface AuditItem {
+  id: string;
+  actor_id: string;
+  action: string;
+  subject_student_id: string | null;
+  reason: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  created_at: string;
+}
+
+export interface AuditResponse {
+  items: AuditItem[];
+}
+
 export interface AttendanceSession {
   id: string;
   group_id: string;

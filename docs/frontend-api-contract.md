@@ -36,25 +36,10 @@ Frontend запрашивает новый QR раз в 5 секунд. Кажд
 - `GET /sessions/{session_id}/audit` и `GET /groups/{group_id}/audit` — журнал действий и ручных исправлений.
 - `GET /groups/{group_id}/sessions?limit=50&offset=0` — история занятий.
 - `GET /sessions/{session_id}/export.csv` — CSV итогов, включая отсутствующих. Кодировка UTF-8 с BOM.
-- `POST /groups/{group_id}/enrollments/import` — multipart-файл CSV с заголовками `max_user_id,display_name`; возвращает `imported` и `already_enrolled`.
+- `POST /groups/{group_id}/enrollments/import` — multipart-файл `file` в CSV-формате с заголовками `max_user_id,display_name`; UTF-8/BOM, запятая или точка с запятой, до 1000 строк/200 КБ; возвращает `imported` и `already_enrolled`. Одиночное добавление в интерфейсе использует этот же endpoint, отправляя CSV из одной строки.
 - `GET /groups/{group_id}/stats` — сводные количества сессий и отметок, средний процент посещаемости.
 
-Все операции доступны только преподавателю соответствующей группы. Frontend вызывает ручные корректировки, историю и CSV-экспорт. CSV-импорт, аудит и статистика остаются следующим этапом.
-
-## Требуемое дополнение для ручного добавления студента
-
-Frontend и mock API используют `POST /groups/{group_id}/enrollments` с телом:
-
-```json
-{
-  "max_user_id": "20004",
-  "display_name": "Илья Петров"
-}
-```
-
-Backend должен найти студента по `max_user_id` либо создать нового пользователя с ролью `student`, идемпотентно добавить его в группу преподавателя и вернуть `StudentOut` с `id`, `max_user_id` и `display_name`. Повторное добавление не должно создавать дубликат. Для невалидного MAX ID или имени нужен `VALIDATION_ERROR`, для чужой группы — `GROUP_NOT_FOUND`/`FORBIDDEN` по действующим правилам доступа.
-
-До реализации этого расширения настоящий backend принимает только `{ "student_id": "..." }`; новый сценарий полностью доступен в mock API.
+Все операции доступны только преподавателю соответствующей группы. Frontend вызывает ручные корректировки, историю, CSV-экспорт и импорт, аудит группы/занятия и статистику. Backend валидирует CSV целиком до записи, добавляет участников идемпотентно и создаёт запись аудита `roster_import`.
 
 ## Формат ошибки
 

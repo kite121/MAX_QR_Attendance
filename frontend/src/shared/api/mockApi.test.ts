@@ -80,17 +80,68 @@ describe('mock API attendance contract', () => {
 
   it('manages the roster through the proposed MAX ID enrollment contract', async () => {
     const teacher = await mockApi.authMock('teacher.demo', 'baam-demo');
-    const student = await mockApi.enrollStudent(teacher.access_token, 'group-ivt-21', {
+    const result = await mockApi.enrollStudent(teacher.access_token, 'group-ivt-21', {
       max_user_id: '20004',
       display_name: 'Илья Петров',
     });
 
-    expect(student).toMatchObject({ max_user_id: '20004', display_name: 'Илья Петров' });
+    expect(result).toEqual({ imported: 1, already_enrolled: 0 });
     await expect(
       mockApi.getGroupStudents(teacher.access_token, 'group-ivt-21'),
-    ).resolves.toMatchObject({ items: expect.arrayContaining([student]) });
+    ).resolves.toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({ max_user_id: '20004', display_name: 'Илья Петров' }),
+      ]),
+    });
     await expect(mockApi.getGroups(teacher.access_token)).resolves.toMatchObject({
       items: [expect.objectContaining({ student_count: 3 })],
+    });
+  });
+
+  it('imports CSV idempotently and exposes group stats and audit', async () => {
+    const teacher = await mockApi.authMock('teacher.demo', 'baam-demo');
+    const csv = new File(
+      ['max_user_id;display_name\r\n20004;"Илья Петров"\r\n20005;"Анна, Петрова"'],
+      'roster.csv',
+      { type: 'text/csv' },
+    );
+    await expect(
+      mockApi.importStudentsCsv(teacher.access_token, 'group-ivt-21', csv),
+    ).resolves.toEqual({ imported: 2, already_enrolled: 0 });
+    await expect(
+      mockApi.importStudentsCsv(teacher.access_token, 'group-ivt-21', csv),
+    ).resolves.toEqual({ imported: 0, already_enrolled: 2 });
+    await expect(
+      mockApi.getGroupStats(teacher.access_token, 'group-ivt-21'),
+    ).resolves.toMatchObject({ group_id: 'group-ivt-21', sessions_count: 0 });
+    await expect(
+      mockApi.getGroupAudit(teacher.access_token, 'group-ivt-21'),
+    ).resolves.toMatchObject({
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          action: 'roster_import',
+          reason: 'imported=0; already_enrolled=2',
+        }),
+      ]),
+    });
+  });
+
+  it('rejects malformed roster imports atomically', async () => {
+    const teacher = await mockApi.authMock('teacher.demo', 'baam-demo');
+    const csv = new File(
+      ['max_user_id,display_name\n20004,Valid Student\nnot-a-number,Invalid Student'],
+      'invalid.csv',
+      { type: 'text/csv' },
+    );
+    await expect(
+      mockApi.importStudentsCsv(teacher.access_token, 'group-ivt-21', csv),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 422 });
+    await expect(
+      mockApi.getGroupStudents(teacher.access_token, 'group-ivt-21'),
+    ).resolves.toMatchObject({
+      items: expect.not.arrayContaining([
+        expect.objectContaining({ max_user_id: '20004' }),
+      ]),
     });
   });
 
