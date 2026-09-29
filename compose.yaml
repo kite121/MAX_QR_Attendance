@@ -33,7 +33,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "${BACKEND_BIND_ADDRESS:-0.0.0.0}:${BACKEND_HOST_PORT:-8000}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=2)"]
       interval: 5s
@@ -46,7 +46,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "8080:80"
+      - "${FRONTEND_BIND_ADDRESS:-0.0.0.0}:${FRONTEND_HOST_PORT:-8080}:80"
 
 volumes:
   postgres_data:

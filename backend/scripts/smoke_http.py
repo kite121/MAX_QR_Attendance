@@ -1,25 +1,38 @@
 """Exercise the local compose API, including two simultaneous check-ins."""
 
+import argparse
 import os
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
+from uuid import uuid4
 
 import httpx
 
 
-def main() -> None:
-    base = os.getenv("SMOKE_BASE_URL", "http://localhost:8080/api/v1")
+def main(base: str) -> None:
     password = os.getenv("DEMO_PASSWORD", "baam-demo")
 
-    def login(name: str) -> dict[str, str]:
+    def login(name: str) -> tuple[dict[str, str], str]:
         response = httpx.post(f"{base}/auth/mock", json={"login": name, "password": password}, timeout=5)
         response.raise_for_status()
-        return {"Authorization": f"Bearer {response.json()['access_token']}"}
+        body = response.json()
+        return {"Authorization": f"Bearer {body['access_token']}"}, body["user"]["id"]
 
-    teacher = login("teacher.demo")
-    student = login("student.kirill")
+    teacher, _ = login("teacher.demo")
+    student, student_id = login("student.kirill")
+    group = httpx.post(
+        f"{base}/groups", headers=teacher,
+        json={"name": f"Параллельная-проверка-{uuid4().hex[:12]}"}, timeout=5,
+    )
+    group.raise_for_status()
+    group_id = group.json()["id"]
+    enrolled = httpx.post(
+        f"{base}/groups/{group_id}/enrollments", headers=teacher,
+        json={"student_id": student_id}, timeout=5,
+    )
+    enrolled.raise_for_status()
     created = httpx.post(
-        f"{base}/groups/group-ivt-21/sessions", headers=teacher,
+        f"{base}/groups/{group_id}/sessions", headers=teacher,
         json={"title": "Parallel smoke test"}, timeout=5,
     )
     created.raise_for_status()
@@ -43,7 +56,10 @@ def main() -> None:
     result.raise_for_status()
     assert result.json()["present_count"] == 1, result.json()
     print("parallel_check_in: one 200, one 409, one stored row")
+    print(f"session_id={session_id}")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--base-url", default=os.getenv("SMOKE_BASE_URL", "http://localhost:8080/api/v1"))
+    main(parser.parse_args().base_url)

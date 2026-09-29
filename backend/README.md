@@ -31,6 +31,8 @@ Frontend: `http://localhost:8080`; API и OpenAPI UI: `http://localhost:8000/api
 3. Укажите `BOOTSTRAP_TEACHER_MAX_USER_ID` — MAX ID первого тестового преподавателя, а также `BOOTSTRAP_TEACHER_NAME` и `BOOTSTRAP_GROUP_NAME`. При старте backend идемпотентно создаст преподавателя и привяжет группу. Если сервер уже создавал этого пользователя как студента, роль будет повышена только операторской командой bootstrap. Для студентов используйте CSV-импорт или привязку к группе. Обычный вход нового подписанного MAX-пользователя создаёт студента без группы.
 4. Для публичной установки задайте `ENVIRONMENT=production`, отдельный случайный `JWT_SECRET` длиной от 32 символов, `ENABLE_MOCK_AUTH=false`, `CORS_ORIGINS` и HTTPS reverse proxy. В production конфигурация без имени и токена бота не запустится.
 
+Подготовка тестовых аккаунтов и группы MAX без ручного SQL описана в [`../docs/max-test-roster.md`](../docs/max-test-roster.md). Результаты локальных проверок находятся в [`../docs/backend-release-checks.md`](../docs/backend-release-checks.md), а оставшиеся шаги после получения сервера — в [`../docs/production-deploy-checklist.md`](../docs/production-deploy-checklist.md).
+
 Подпись `initData` проверяется по [алгоритму MAX](https://dev.max.ru/docs/webapps/validation) `HMAC-SHA256(HMAC-SHA256("WebAppData", BOT_TOKEN), launch_params)` с проверкой `auth_date` (по умолчанию один час). Клиентский `initDataUnsafe` не используется для удостоверения личности. Диплинк QR в MAX имеет вид `https://max.ru/<botName>?startapp=<token>`.
 
 ## Основные API
@@ -58,6 +60,45 @@ python -m venv .venv
 
 На Linux/macOS используйте `.venv/bin/`. Конфигурация читается из переменных окружения или локального `.env`. При изменении API обновите статический OpenAPI командой `python scripts/export_openapi.py` из `backend/`.
 Для проверки двух одновременных HTTP-отметок на запущенном compose выполните `.venv/Scripts/python scripts/smoke_http.py`.
+
+## Приёмка с проверкой записи в PostgreSQL
+
+Запустите локальный compose с `ENABLE_MOCK_AUTH=true`, затем из корня репозитория:
+
+```powershell
+backend\.venv\Scripts\python.exe backend\scripts\acceptance_http.py
+```
+
+Нужен `httpx` из тестовых зависимостей (`pip install -e '.[test]'` в `backend/`). Если пароль демо-пользователей в `.env` изменён, перед запуском задайте такой же `DEMO_PASSWORD` в терминале. Сценарий создаёт новую синтетическую группу с уникальным именем, зачисляет Анну и Кирилла через **текущий тестовый API преподавателя**, проверяет QR-отметку, запрет повторной отметки и постороннего студента, закрытие занятия, ручную отметку после закрытия, аудит, CSV и историю. На успех выводится `PASS` и идентификаторы `group_id`/`session_id`. Тестовые записи намеренно остаются в PostgreSQL для просмотра; существующие группы и занятия сценарий не меняет. На публичном сервере его не запускайте.
+
+Подставьте напечатанный `session_id` в запрос ниже и выполните из корня репозитория. Ожидаемый результат: `closed|2|1|1` — закрытое занятие, всего две отметки, одна через QR и одна вручную.
+
+```powershell
+docker compose exec -T db psql -U attendance -d attendance -At -c "SELECT s.status, COUNT(c.id), COUNT(*) FILTER (WHERE c.source='qr'), COUNT(*) FILTER (WHERE c.source='manual') FROM attendance_sessions s LEFT JOIN check_ins c ON c.session_id=s.id WHERE s.id='<session_id>' GROUP BY s.status;"
+```
+
+Это прямое чтение таблиц БД, независимое от ответа API. Учтите, что `GET /api/v1/groups` в Swagger требует JWT нашего приложения: сначала вызовите `/api/v1/auth/mock`, затем кнопку Authorize и передайте полученный `access_token`. Токен бота MAX для локальной приёмки не нужен.
+
+### Изолированная проверка запуска, рестарта и параллельных отметок
+
+Из корня репозитория запустите отдельный Compose-проект. Он использует собственный том БД и порты `127.0.0.1:18000` (API), `127.0.0.1:18080` (Mini App), поэтому не затрагивает обычный стек на 8000/8080:
+
+```powershell
+docker compose --env-file .env.acceptance.example -p maxqr_acceptance up -d --build
+Invoke-RestMethod http://127.0.0.1:18080/healthz
+backend\.venv\Scripts\python.exe backend\scripts\acceptance_http.py --base-url http://127.0.0.1:18000/api/v1
+```
+
+Сохраните напечатанный `session_id`. Для проверки сохранности после перезапуска выполните:
+
+```powershell
+docker compose --env-file .env.acceptance.example -p maxqr_acceptance stop
+docker compose --env-file .env.acceptance.example -p maxqr_acceptance start
+backend\.venv\Scripts\python.exe backend\scripts\acceptance_http.py --base-url http://127.0.0.1:18000/api/v1 --verify-session SESSION_ID_FROM_OUTPUT
+backend\.venv\Scripts\python.exe backend\scripts\smoke_http.py --base-url http://127.0.0.1:18000/api/v1
+```
+
+Ожидается `PASS` после рестарта и `parallel_check_in: one 200, one 409, one stored row`. Приёмочный скрипт и параллельный smoke test создают только новые синтетические группы; их записи остаются в тестовом томе. Остановить именно этот стек без удаления данных: `docker compose --env-file .env.acceptance.example -p maxqr_acceptance stop`. Для замера сборки без кэша базовые образы должны быть скачаны заранее; выполните `docker compose --env-file .env.acceptance.example -p maxqr_acceptance build --no-cache` и измерьте время отдельно от загрузки образов.
 
 ## Данные и ограничения
 
