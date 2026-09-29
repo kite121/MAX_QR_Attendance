@@ -6,9 +6,14 @@ import type {
   CheckInItem,
   CheckInResult,
   CheckInsResponse,
+  EnrollStudentInput,
   Group,
   GroupsResponse,
+  ManualCorrectionInput,
   QrTokenResponse,
+  SessionsResponse,
+  Student,
+  StudentsResponse,
   User,
 } from './types';
 
@@ -28,6 +33,8 @@ interface MockDatabase {
   sessions: AttendanceSession[];
   qrTokens: MockToken[];
   checkIns: Array<CheckInItem & { sessionId: string }>;
+  customStudents: MockUser[];
+  enrollments: Array<{ groupId: string; studentId: string }>;
 }
 
 const DATABASE_KEY = 'baam-max-mock-database-v1';
@@ -78,10 +85,23 @@ const users: MockUser[] = [
 ];
 
 function readDatabase(): MockDatabase {
-  const emptyDatabase: MockDatabase = { sessions: [], qrTokens: [], checkIns: [] };
+  const emptyDatabase: MockDatabase = {
+    sessions: [],
+    qrTokens: [],
+    checkIns: [],
+    customStudents: [],
+    enrollments: [],
+  };
   try {
     const value = localStorage.getItem(DATABASE_KEY);
-    return value ? (JSON.parse(value) as MockDatabase) : emptyDatabase;
+    if (!value) return emptyDatabase;
+    const stored = JSON.parse(value) as Partial<MockDatabase>;
+    return {
+      ...emptyDatabase,
+      ...stored,
+      customStudents: stored.customStudents ?? [],
+      enrollments: stored.enrollments ?? [],
+    };
   } catch {
     return emptyDatabase;
   }
@@ -106,7 +126,9 @@ function publicUser(user: MockUser): User {
 
 function getUser(accessToken: string): MockUser {
   const userId = accessToken.replace('mock-token:', '');
-  const user = users.find((item) => item.id === userId);
+  const user = [...users, ...readDatabase().customStudents].find(
+    (item) => item.id === userId,
+  );
   if (!user) throw new ApiError('UNAUTHORIZED', 'Сессия входа недействительна', 401);
   return user;
 }
@@ -119,6 +141,48 @@ function requireRole(accessToken: string, role: User['role']): MockUser {
 
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
+}
+
+function isEnrolled(student: MockUser, groupId: string, database: MockDatabase): boolean {
+  return (
+    student.groupIds.includes(groupId) ||
+    database.enrollments.some(
+      (item) => item.groupId === groupId && item.studentId === student.id,
+    )
+  );
+}
+
+function allStudents(database: MockDatabase): MockUser[] {
+  return [...users, ...database.customStudents].filter((user) => user.role === 'student');
+}
+
+function publicStudent(student: MockUser): Student {
+  return {
+    id: student.id,
+    max_user_id: student.max_user_id,
+    display_name: student.display_name,
+  };
+}
+
+function requireTeacherGroup(accessToken: string, groupId: string): MockUser {
+  const teacher = requireRole(accessToken, 'teacher');
+  if (!teacher.groupIds.includes(groupId)) {
+    throw new ApiError('GROUP_NOT_FOUND', 'Группа не найдена', 404);
+  }
+  return teacher;
+}
+
+function requireTeacherSession(
+  accessToken: string,
+  sessionId: string,
+  database: MockDatabase,
+): AttendanceSession {
+  const teacher = requireRole(accessToken, 'teacher');
+  const session = database.sessions.find((item) => item.id === sessionId);
+  if (!session || !teacher.groupIds.includes(session.group_id)) {
+    throw new ApiError('SESSION_NOT_FOUND', 'Сессия не найдена', 404);
+  }
+  return session;
 }
 
 export const mockApi = {
@@ -145,7 +209,72 @@ export const mockApi = {
   async getGroups(accessToken: string): Promise<GroupsResponse> {
     await wait();
     const teacher = requireRole(accessToken, 'teacher');
-    return { items: groups.filter((group) => teacher.groupIds.includes(group.id)) };
+    const database = readDatabase();
+    return {
+      items: groups
+        .filter((group) => teacher.groupIds.includes(group.id))
+        .map((group) => ({
+          ...group,
+          student_count: allStudents(database).filter((student) =>
+            isEnrolled(student, group.id, database),
+          ).length,
+        })),
+    };
+  },
+
+  async getGroupStudents(
+    accessToken: string,
+    groupId: string,
+  ): Promise<StudentsResponse> {
+    await wait();
+    requireTeacherGroup(accessToken, groupId);
+    const database = readDatabase();
+    return {
+      items: allStudents(database)
+        .filter((student) => isEnrolled(student, groupId, database))
+        .sort((first, second) =>
+          first.display_name.localeCompare(second.display_name, 'ru'),
+        )
+        .map(publicStudent),
+    };
+  },
+
+  async enrollStudent(
+    accessToken: string,
+    groupId: string,
+    input: EnrollStudentInput,
+  ): Promise<Student> {
+    await wait();
+    requireTeacherGroup(accessToken, groupId);
+    const maxUserId = input.max_user_id.trim();
+    const displayName = input.display_name.trim();
+    if (!/^\d{1,20}$/.test(maxUserId) || !displayName) {
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        'Укажите числовой MAX ID и имя студента',
+        422,
+      );
+    }
+
+    const database = readDatabase();
+    let student = allStudents(database).find((item) => item.max_user_id === maxUserId);
+    if (!student) {
+      student = {
+        id: createId('student'),
+        max_user_id: maxUserId,
+        display_name: displayName,
+        role: 'student',
+        login: '',
+        password: '',
+        groupIds: [],
+      };
+      database.customStudents.push(student);
+    }
+    if (!isEnrolled(student, groupId, database)) {
+      database.enrollments.push({ groupId, studentId: student.id });
+    }
+    writeDatabase(database);
+    return publicStudent(student);
   },
 
   async createSession(
@@ -177,12 +306,44 @@ export const mockApi = {
     return session;
   },
 
+  async getActiveSession(
+    accessToken: string,
+    groupId: string,
+  ): Promise<AttendanceSession> {
+    await wait();
+    requireTeacherGroup(accessToken, groupId);
+    const session = readDatabase().sessions.find(
+      (item) => item.group_id === groupId && item.status === 'active',
+    );
+    if (!session) {
+      throw new ApiError('SESSION_NOT_FOUND', 'Активная сессия не найдена', 404);
+    }
+    return session;
+  },
+
+  async getSession(accessToken: string, sessionId: string): Promise<AttendanceSession> {
+    await wait();
+    const database = readDatabase();
+    return requireTeacherSession(accessToken, sessionId, database);
+  },
+
+  async getSessions(accessToken: string, groupId: string): Promise<SessionsResponse> {
+    await wait();
+    requireTeacherGroup(accessToken, groupId);
+    return {
+      items: readDatabase()
+        .sessions.filter((session) => session.group_id === groupId)
+        .sort(
+          (first, second) =>
+            new Date(second.started_at).getTime() - new Date(first.started_at).getTime(),
+        ),
+    };
+  },
+
   async getQrToken(accessToken: string, sessionId: string): Promise<QrTokenResponse> {
     await wait();
-    requireRole(accessToken, 'teacher');
     const database = readDatabase();
-    const session = database.sessions.find((item) => item.id === sessionId);
-    if (!session) throw new ApiError('SESSION_NOT_FOUND', 'Сессия не найдена', 404);
+    const session = requireTeacherSession(accessToken, sessionId, database);
     if (session.status === 'closed') {
       throw new ApiError('SESSION_CLOSED', 'Сессия уже завершена', 409);
     }
@@ -217,7 +378,7 @@ export const mockApi = {
     let status: CheckInContext['status'] = 'available';
     if (new Date(qrToken.expiresAt).getTime() <= Date.now()) status = 'expired';
     else if (session.status === 'closed') status = 'session_closed';
-    else if (!student.groupIds.includes(session.group_id)) status = 'not_enrolled';
+    else if (!isEnrolled(student, session.group_id, database)) status = 'not_enrolled';
     else if (
       database.checkIns.some(
         (item) => item.sessionId === session.id && item.student_id === student.id,
@@ -258,6 +419,8 @@ export const mockApi = {
       student_id: student.id,
       display_name: student.display_name,
       checked_in_at: checkedInAt,
+      attendance_status: 'present',
+      source: 'qr',
     });
     writeDatabase(database);
     return {
@@ -269,11 +432,8 @@ export const mockApi = {
 
   async getCheckIns(accessToken: string, sessionId: string): Promise<CheckInsResponse> {
     await wait();
-    requireRole(accessToken, 'teacher');
     const database = readDatabase();
-    const session = database.sessions.find((item) => item.id === sessionId);
-    if (!session) throw new ApiError('SESSION_NOT_FOUND', 'Сессия не найдена', 404);
-    const group = groups.find((item) => item.id === session.group_id)!;
+    const session = requireTeacherSession(accessToken, sessionId, database);
     const items = database.checkIns
       .filter((item) => item.sessionId === sessionId)
       .sort(
@@ -285,22 +445,111 @@ export const mockApi = {
         student_id: item.student_id,
         display_name: item.display_name,
         checked_in_at: item.checked_in_at,
+        attendance_status: item.attendance_status,
+        source: item.source,
       }));
     return {
       session_id: sessionId,
       status: session.status,
       present_count: items.length,
-      student_count: group.student_count,
+      student_count: allStudents(database).filter((student) =>
+        isEnrolled(student, session.group_id, database),
+      ).length,
       items,
     };
   },
 
+  async correctCheckIn(
+    accessToken: string,
+    sessionId: string,
+    input: ManualCorrectionInput,
+  ): Promise<CheckInsResponse> {
+    await wait();
+    const database = readDatabase();
+    const session = requireTeacherSession(accessToken, sessionId, database);
+    const student = allStudents(database).find((item) => item.id === input.student_id);
+    if (!student || !isEnrolled(student, session.group_id, database)) {
+      throw new ApiError('STUDENT_NOT_ENROLLED', 'Студент не найден в группе', 404);
+    }
+    if (input.reason.trim().length < 5) {
+      throw new ApiError('VALIDATION_ERROR', 'Укажите причину изменения', 422);
+    }
+
+    const existingIndex = database.checkIns.findIndex(
+      (item) => item.sessionId === sessionId && item.student_id === student.id,
+    );
+    if (input.action === 'add') {
+      if (existingIndex >= 0) {
+        throw new ApiError('ALREADY_CHECKED_IN', 'Студент уже отмечен', 409);
+      }
+      database.checkIns.push({
+        sessionId,
+        student_id: student.id,
+        display_name: student.display_name,
+        checked_in_at: new Date().toISOString(),
+        attendance_status: input.attendance_status ?? 'present',
+        source: 'manual',
+      });
+    } else if (input.action === 'remove') {
+      if (existingIndex < 0) {
+        throw new ApiError('VALIDATION_ERROR', 'Отметка не найдена', 409);
+      }
+      database.checkIns.splice(existingIndex, 1);
+    } else {
+      if (existingIndex < 0) {
+        throw new ApiError('VALIDATION_ERROR', 'Отметка не найдена', 409);
+      }
+      if (!input.attendance_status) {
+        throw new ApiError('VALIDATION_ERROR', 'Выберите статус', 422);
+      }
+      database.checkIns[existingIndex].attendance_status = input.attendance_status;
+      database.checkIns[existingIndex].source = 'manual';
+    }
+    writeDatabase(database);
+    return this.getCheckIns(accessToken, sessionId);
+  },
+
+  async exportSessionCsv(accessToken: string, sessionId: string): Promise<Blob> {
+    await wait();
+    const database = readDatabase();
+    const session = requireTeacherSession(accessToken, sessionId, database);
+    const checkIns = new Map(
+      database.checkIns
+        .filter((item) => item.sessionId === sessionId)
+        .map((item) => [item.student_id, item]),
+    );
+    const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`;
+    const rows = allStudents(database)
+      .filter((student) => isEnrolled(student, session.group_id, database))
+      .sort((first, second) =>
+        first.display_name.localeCompare(second.display_name, 'ru'),
+      )
+      .map((student) => {
+        const checkIn = checkIns.get(student.id);
+        return [
+          student.id,
+          student.max_user_id ?? '',
+          student.display_name,
+          checkIn?.attendance_status ?? 'absent',
+          checkIn?.checked_in_at ?? '',
+          checkIn?.source ?? '',
+        ]
+          .map(escapeCsv)
+          .join(',');
+      });
+    return new Blob(
+      [
+        '\ufeffstudent_id,max_user_id,display_name,status,checked_in_at,source\r\n',
+        rows.join('\r\n'),
+      ],
+      { type: 'text/csv;charset=utf-8' },
+    );
+  },
+
   async closeSession(accessToken: string, sessionId: string): Promise<AttendanceSession> {
     await wait();
-    requireRole(accessToken, 'teacher');
     const database = readDatabase();
-    const session = database.sessions.find((item) => item.id === sessionId);
-    if (!session) throw new ApiError('SESSION_NOT_FOUND', 'Сессия не найдена', 404);
+    const session = requireTeacherSession(accessToken, sessionId, database);
     session.status = 'closed';
     session.closed_at = new Date().toISOString();
     session.present_count = database.checkIns.filter(
