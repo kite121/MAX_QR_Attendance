@@ -59,6 +59,24 @@ python -m venv .venv
 На Linux/macOS используйте `.venv/bin/`. Конфигурация читается из переменных окружения или локального `.env`. При изменении API обновите статический OpenAPI командой `python scripts/export_openapi.py` из `backend/`.
 Для проверки двух одновременных HTTP-отметок на запущенном compose выполните `.venv/Scripts/python scripts/smoke_http.py`.
 
+## Приёмка с проверкой записи в PostgreSQL
+
+Запустите локальный compose с `ENABLE_MOCK_AUTH=true`, затем из корня репозитория:
+
+```powershell
+backend\.venv\Scripts\python.exe backend\scripts\acceptance_http.py
+```
+
+Нужен `httpx` из тестовых зависимостей (`pip install -e '.[test]'` в `backend/`). Если пароль демо-пользователей в `.env` изменён, перед запуском задайте такой же `DEMO_PASSWORD` в терминале. Сценарий создаёт новую синтетическую группу с уникальным именем, зачисляет Анну и Кирилла через **текущий тестовый API преподавателя**, проверяет QR-отметку, запрет повторной отметки и постороннего студента, закрытие занятия, ручную отметку после закрытия, аудит, CSV и историю. На успех выводится `PASS` и идентификаторы `group_id`/`session_id`. Тестовые записи намеренно остаются в PostgreSQL для просмотра; существующие группы и занятия сценарий не меняет. На публичном сервере его не запускайте.
+
+Подставьте напечатанный `session_id` в запрос ниже и выполните из корня репозитория. Ожидаемый результат: `closed|2|1|1` — закрытое занятие, всего две отметки, одна через QR и одна вручную.
+
+```powershell
+docker compose exec -T db psql -U attendance -d attendance -At -c "SELECT s.status, COUNT(c.id), COUNT(*) FILTER (WHERE c.source='qr'), COUNT(*) FILTER (WHERE c.source='manual') FROM attendance_sessions s LEFT JOIN check_ins c ON c.session_id=s.id WHERE s.id='<session_id>' GROUP BY s.status;"
+```
+
+Это прямое чтение таблиц БД, независимое от ответа API. Учтите, что `GET /api/v1/groups` в Swagger требует JWT нашего приложения: сначала вызовите `/api/v1/auth/mock`, затем кнопку Authorize и передайте полученный `access_token`. Токен бота MAX для локальной приёмки не нужен.
+
 ## Данные и ограничения
 
 В репозитории только синтетические имена и тестовые идентификаторы. Телефоны, IP и сами QR-токены в БД не сохраняются; access token браузер хранит в памяти. HTTP-журнал содержит метод, путь без query string, статус и время ответа; access-log Uvicorn выключен, чтобы QR из query string не попадал в него.
