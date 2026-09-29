@@ -77,6 +77,27 @@ docker compose exec -T db psql -U attendance -d attendance -At -c "SELECT s.stat
 
 Это прямое чтение таблиц БД, независимое от ответа API. Учтите, что `GET /api/v1/groups` в Swagger требует JWT нашего приложения: сначала вызовите `/api/v1/auth/mock`, затем кнопку Authorize и передайте полученный `access_token`. Токен бота MAX для локальной приёмки не нужен.
 
+### Изолированная проверка запуска, рестарта и параллельных отметок
+
+Из корня репозитория запустите отдельный Compose-проект. Он использует собственный том БД и порты `127.0.0.1:18000` (API), `127.0.0.1:18080` (Mini App), поэтому не затрагивает обычный стек на 8000/8080:
+
+```powershell
+docker compose --env-file .env.acceptance.example -p maxqr_acceptance up -d --build
+Invoke-RestMethod http://127.0.0.1:18080/healthz
+backend\.venv\Scripts\python.exe backend\scripts\acceptance_http.py --base-url http://127.0.0.1:18000/api/v1
+```
+
+Сохраните напечатанный `session_id`. Для проверки сохранности после перезапуска выполните:
+
+```powershell
+docker compose --env-file .env.acceptance.example -p maxqr_acceptance stop
+docker compose --env-file .env.acceptance.example -p maxqr_acceptance start
+backend\.venv\Scripts\python.exe backend\scripts\acceptance_http.py --base-url http://127.0.0.1:18000/api/v1 --verify-session SESSION_ID_FROM_OUTPUT
+backend\.venv\Scripts\python.exe backend\scripts\smoke_http.py --base-url http://127.0.0.1:18000/api/v1
+```
+
+Ожидается `PASS` после рестарта и `parallel_check_in: one 200, one 409, one stored row`. Приёмочный скрипт и параллельный smoke test создают только новые синтетические группы; их записи остаются в тестовом томе. Остановить именно этот стек без удаления данных: `docker compose --env-file .env.acceptance.example -p maxqr_acceptance stop`. Для замера сборки без кэша базовые образы должны быть скачаны заранее; выполните `docker compose --env-file .env.acceptance.example -p maxqr_acceptance build --no-cache` и измерьте время отдельно от загрузки образов.
+
 ## Данные и ограничения
 
 В репозитории только синтетические имена и тестовые идентификаторы. Телефоны, IP и сами QR-токены в БД не сохраняются; access token браузер хранит в памяти. HTTP-журнал содержит метод, путь без query string, статус и время ответа; access-log Uvicorn выключен, чтобы QR из query string не попадал в него.

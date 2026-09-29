@@ -4,6 +4,7 @@ Creates a uniquely named synthetic group and keeps its records for DB inspection
 Never use this script with production credentials or real student data.
 """
 
+import argparse
 import csv
 import io
 import os
@@ -27,8 +28,8 @@ def expect(response: httpx.Response, status: int, error_code: str | None = None)
     return body
 
 
-def main() -> None:
-    with httpx.Client(base_url=BASE_URL, timeout=10) as client:
+def main(base_url: str, verify_session: str | None) -> None:
+    with httpx.Client(base_url=base_url, timeout=10) as client:
         def login(name: str) -> tuple[dict[str, str], str]:
             body = expect(client.post("/auth/mock", json={"login": name, "password": DEMO_PASSWORD}), 200)
             return {"Authorization": f"Bearer {body['access_token']}"}, body["user"]["id"]
@@ -37,6 +38,26 @@ def main() -> None:
         anna, anna_id = login("student.anna")
         kirill, kirill_id = login("student.kirill")
         outsider, outsider_id = login("student.outsider")
+
+        if verify_session is not None:
+            session = expect(client.get(f"/sessions/{verify_session}", headers=teacher), 200)
+            stored = expect(client.get(f"/sessions/{verify_session}/check-ins", headers=teacher), 200)
+            assert session["status"] == "closed" and stored["present_count"] == 2, stored
+            assert {item["student_id"]: item["source"] for item in stored["items"]} == {
+                anna_id: "qr", kirill_id: "manual",
+            }, stored
+            audit = expect(client.get(f"/sessions/{verify_session}/audit", headers=teacher), 200)["items"]
+            assert any(item["action"] == "manual_add" for item in audit), audit
+            exported = client.get(f"/sessions/{verify_session}/export.csv", headers=teacher)
+            assert exported.status_code == 200, exported.text
+            rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+            assert {row["student_id"]: row["source"] for row in rows} == {
+                anna_id: "qr", kirill_id: "manual",
+            }, rows
+            history = expect(client.get(f"/groups/{session['group_id']}/sessions", headers=teacher), 200)["items"]
+            assert any(item["id"] == verify_session and item["present_count"] == 2 for item in history), history
+            print(f"PASS: session {verify_session} persisted after restart with QR/manual marks, audit, CSV, history")
+            return
 
         expect(client.get("/groups"), 401, "UNAUTHORIZED")
         expect(client.get("/groups", headers=anna), 403, "FORBIDDEN")
@@ -104,4 +125,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--base-url", default=BASE_URL)
+    parser.add_argument("--verify-session", help="Read-only check of a session created before a container restart")
+    args = parser.parse_args()
+    main(args.base_url, args.verify_session)
