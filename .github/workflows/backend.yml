@@ -46,5 +46,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate production Compose
+        env:
+          POSTGRES_PASSWORD: ci-only-postgres-hex-password
+          JWT_SECRET: ci-only-jwt-secret-longer-than-thirty-two-characters
+          MAX_BOT_TOKEN: synthetic-ci-bot-token
+          MAX_BOT_NAME: test_bot
+        run: docker compose -f compose.production.yaml config --quiet
       - run: docker build -t max-attendance-backend ./backend
       - run: docker build -t max-attendance-frontend ./frontend

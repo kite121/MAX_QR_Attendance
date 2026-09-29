@@ -1,0 +1,4 @@
+# No access log: MAX launch URLs may contain short-lived QR start parameters.
+app.qr-otmetka.ru {
+	reverse_proxy frontend:80
+}

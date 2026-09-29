@@ -1,0 +1,75 @@
+name: maxqr
+
+# Public deployment only. Run with --env-file .env.production; never use demo defaults.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: attendance
+      POSTGRES_USER: attendance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance -d attendance"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://attendance:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}@db:5432/attendance
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.production}
+      ENABLE_MOCK_AUTH: "false"
+      MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:?Set MAX_BOT_TOKEN in .env.production}
+      MAX_BOT_NAME: ${MAX_BOT_NAME:?Set MAX_BOT_NAME in .env.production}
+      BOOTSTRAP_TEACHER_MAX_USER_ID: ${BOOTSTRAP_TEACHER_MAX_USER_ID:-}
+      BOOTSTRAP_TEACHER_NAME: ${BOOTSTRAP_TEACHER_NAME:-Тестовый преподаватель}
+      BOOTSTRAP_GROUP_NAME: ${BOOTSTRAP_GROUP_NAME:-Тестовая группа}
+      CORS_ORIGINS: https://app.qr-otmetka.ru
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        FRONTEND_BUILD_MODE: production
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
