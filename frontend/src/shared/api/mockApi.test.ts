@@ -30,7 +30,11 @@ describe('mock API attendance contract', () => {
 
     const checkIns = await mockApi.getCheckIns(teacher.access_token, session.id);
     expect(checkIns).toMatchObject({ present_count: 1, student_count: 2 });
-    expect(checkIns.items[0].display_name).toBe('Анна Смирнова');
+    expect(checkIns.items[0]).toMatchObject({
+      display_name: 'Анна Смирнова',
+      attendance_status: 'present',
+      source: 'qr',
+    });
 
     await expect(mockApi.checkIn(student.access_token, qr.token)).rejects.toMatchObject({
       code: 'ALREADY_CHECKED_IN',
@@ -72,5 +76,54 @@ describe('mock API attendance contract', () => {
     const response = await mockApi.authMock('teacher.demo', 'baam-demo');
     expect(response.access_token).toContain('mock-token:');
     expect(JSON.stringify(localStorage)).not.toContain(response.access_token);
+  });
+
+  it('manages the roster through the proposed MAX ID enrollment contract', async () => {
+    const teacher = await mockApi.authMock('teacher.demo', 'baam-demo');
+    const student = await mockApi.enrollStudent(teacher.access_token, 'group-ivt-21', {
+      max_user_id: '20004',
+      display_name: 'Илья Петров',
+    });
+
+    expect(student).toMatchObject({ max_user_id: '20004', display_name: 'Илья Петров' });
+    await expect(
+      mockApi.getGroupStudents(teacher.access_token, 'group-ivt-21'),
+    ).resolves.toMatchObject({ items: expect.arrayContaining([student]) });
+    await expect(mockApi.getGroups(teacher.access_token)).resolves.toMatchObject({
+      items: [expect.objectContaining({ student_count: 3 })],
+    });
+  });
+
+  it('restores sessions, edits attendance and exports the selected session', async () => {
+    const teacher = await mockApi.authMock('teacher.demo', 'baam-demo');
+    const session = await mockApi.createSession(
+      teacher.access_token,
+      'group-ivt-21',
+      'Алгоритмы',
+    );
+
+    await expect(
+      mockApi.getActiveSession(teacher.access_token, 'group-ivt-21'),
+    ).resolves.toMatchObject({ id: session.id });
+
+    const corrected = await mockApi.correctCheckIn(teacher.access_token, session.id, {
+      student_id: 'student-kirill',
+      action: 'add',
+      attendance_status: 'late',
+      reason: 'Опоздал из-за транспорта',
+    });
+    expect(corrected.items[0]).toMatchObject({
+      attendance_status: 'late',
+      source: 'manual',
+    });
+
+    const csv = await mockApi.exportSessionCsv(teacher.access_token, session.id);
+    expect(csv.type).toContain('text/csv');
+    expect(csv.size).toBeGreaterThan(0);
+
+    await mockApi.closeSession(teacher.access_token, session.id);
+    await expect(
+      mockApi.getSessions(teacher.access_token, 'group-ivt-21'),
+    ).resolves.toMatchObject({ items: [expect.objectContaining({ id: session.id })] });
   });
 });

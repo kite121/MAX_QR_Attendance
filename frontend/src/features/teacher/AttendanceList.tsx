@@ -35,6 +35,14 @@ export function AttendanceList({ items, final = false }: AttendanceListProps) {
               .slice(0, 2)}
           </span>
           <span className="attendance-list__name">{item.display_name}</span>
+          <span
+            className={`attendance-badge attendance-badge--${item.attendance_status}`}
+          >
+            {item.attendance_status === 'late' ? 'Опоздал' : 'Вовремя'}
+          </span>
+          {item.source === 'manual' ? (
+            <span className="attendance-source">Вручную</span>
+          ) : null}
           <time dateTime={item.checked_in_at}>{formatTime(item.checked_in_at)}</time>
         </li>
       ))}

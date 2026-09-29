@@ -9,7 +9,7 @@ export type CheckInContextStatus =
 
 export interface User {
   id: string;
-  max_user_id: string;
+  max_user_id: string | null;
   display_name: string;
   role: UserRole;
 }
@@ -28,6 +28,21 @@ export interface Group {
 
 export interface GroupsResponse {
   items: Group[];
+}
+
+export interface Student {
+  id: string;
+  max_user_id: string | null;
+  display_name: string;
+}
+
+export interface StudentsResponse {
+  items: Student[];
+}
+
+export interface EnrollStudentInput {
+  max_user_id: string;
+  display_name: string;
 }
 
 export interface AttendanceSession {
@@ -65,6 +80,8 @@ export interface CheckInItem {
   student_id: string;
   display_name: string;
   checked_in_at: string;
+  attendance_status: 'present' | 'late';
+  source: 'qr' | 'manual';
 }
 
 export interface CheckInsResponse {
@@ -73,6 +90,20 @@ export interface CheckInsResponse {
   present_count: number;
   student_count: number;
   items: CheckInItem[];
+}
+
+export interface SessionsResponse {
+  items: AttendanceSession[];
+}
+
+export type ManualCorrectionAction = 'add' | 'remove' | 'set_status';
+export type AttendanceStatus = 'present' | 'late';
+
+export interface ManualCorrectionInput {
+  student_id: string;
+  action: ManualCorrectionAction;
+  attendance_status?: AttendanceStatus;
+  reason: string;
 }
 
 export interface ApiErrorBody {
@@ -95,5 +126,6 @@ export type ApiErrorCode =
   | 'QR_TOKEN_EXPIRED'
   | 'STUDENT_NOT_ENROLLED'
   | 'ALREADY_CHECKED_IN'
+  | 'RATE_LIMITED'
   | 'VALIDATION_ERROR'
   | 'INTERNAL_ERROR';

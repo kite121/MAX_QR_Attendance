@@ -1,5 +1,5 @@
 import { env } from '../../config/env';
-import { request } from './httpClient';
+import { request, requestBlob } from './httpClient';
 import { mockApi } from './mockApi';
 import type {
   AttendanceSession,
@@ -7,8 +7,13 @@ import type {
   CheckInContext,
   CheckInResult,
   CheckInsResponse,
+  EnrollStudentInput,
   GroupsResponse,
+  ManualCorrectionInput,
   QrTokenResponse,
+  SessionsResponse,
+  Student,
+  StudentsResponse,
 } from './types';
 
 export const api = {
@@ -33,6 +38,31 @@ export const api = {
     return request<GroupsResponse>('/groups', { accessToken, signal });
   },
 
+  getGroupStudents(
+    accessToken: string,
+    groupId: string,
+    signal?: AbortSignal,
+  ): Promise<StudentsResponse> {
+    if (env.useMockApi) return mockApi.getGroupStudents(accessToken, groupId);
+    return request<StudentsResponse>(`/groups/${groupId}/students`, {
+      accessToken,
+      signal,
+    });
+  },
+
+  enrollStudent(
+    accessToken: string,
+    groupId: string,
+    input: EnrollStudentInput,
+  ): Promise<Student> {
+    if (env.useMockApi) return mockApi.enrollStudent(accessToken, groupId, input);
+    return request<Student>(`/groups/${groupId}/enrollments`, {
+      method: 'POST',
+      accessToken,
+      body: input,
+    });
+  },
+
   createSession(
     accessToken: string,
     groupId: string,
@@ -43,6 +73,42 @@ export const api = {
       method: 'POST',
       accessToken,
       body: { title },
+    });
+  },
+
+  getActiveSession(
+    accessToken: string,
+    groupId: string,
+    signal?: AbortSignal,
+  ): Promise<AttendanceSession> {
+    if (env.useMockApi) return mockApi.getActiveSession(accessToken, groupId);
+    return request<AttendanceSession>(`/groups/${groupId}/sessions/active`, {
+      accessToken,
+      signal,
+    });
+  },
+
+  getSession(
+    accessToken: string,
+    sessionId: string,
+    signal?: AbortSignal,
+  ): Promise<AttendanceSession> {
+    if (env.useMockApi) return mockApi.getSession(accessToken, sessionId);
+    return request<AttendanceSession>(`/sessions/${sessionId}`, {
+      accessToken,
+      signal,
+    });
+  },
+
+  getSessions(
+    accessToken: string,
+    groupId: string,
+    signal?: AbortSignal,
+  ): Promise<SessionsResponse> {
+    if (env.useMockApi) return mockApi.getSessions(accessToken, groupId);
+    return request<SessionsResponse>(`/groups/${groupId}/sessions?limit=50&offset=0`, {
+      accessToken,
+      signal,
     });
   },
 
@@ -88,6 +154,24 @@ export const api = {
       accessToken,
       signal,
     });
+  },
+
+  correctCheckIn(
+    accessToken: string,
+    sessionId: string,
+    input: ManualCorrectionInput,
+  ): Promise<CheckInsResponse> {
+    if (env.useMockApi) return mockApi.correctCheckIn(accessToken, sessionId, input);
+    return request<CheckInsResponse>(`/sessions/${sessionId}/check-ins/manual`, {
+      method: 'POST',
+      accessToken,
+      body: input,
+    });
+  },
+
+  exportSessionCsv(accessToken: string, sessionId: string): Promise<Blob> {
+    if (env.useMockApi) return mockApi.exportSessionCsv(accessToken, sessionId);
+    return requestBlob(`/sessions/${sessionId}/export.csv`, { accessToken });
   },
 
   closeSession(accessToken: string, sessionId: string): Promise<AttendanceSession> {

@@ -28,6 +28,8 @@ node_modules/
 dist/
 build/
 coverage/
+playwright-report/
+test-results/
 *.tsbuildinfo
 
 # Local data and generated files
