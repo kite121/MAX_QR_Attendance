@@ -31,6 +31,8 @@ Frontend: `http://localhost:8080`; API и OpenAPI UI: `http://localhost:8000/api
 3. Укажите `BOOTSTRAP_TEACHER_MAX_USER_ID` — MAX ID первого тестового преподавателя, а также `BOOTSTRAP_TEACHER_NAME` и `BOOTSTRAP_GROUP_NAME`. При старте backend идемпотентно создаст преподавателя и привяжет группу. Если сервер уже создавал этого пользователя как студента, роль будет повышена только операторской командой bootstrap. Для студентов используйте CSV-импорт или привязку к группе. Обычный вход нового подписанного MAX-пользователя создаёт студента без группы.
 4. Для публичной установки задайте `ENVIRONMENT=production`, отдельный случайный `JWT_SECRET` длиной от 32 символов, `ENABLE_MOCK_AUTH=false`, `CORS_ORIGINS` и HTTPS reverse proxy. В production конфигурация без имени и токена бота не запустится.
 
+Подготовка тестовых аккаунтов и группы MAX без ручного SQL описана в [`../docs/max-test-roster.md`](../docs/max-test-roster.md). Результаты локальных проверок находятся в [`../docs/backend-release-checks.md`](../docs/backend-release-checks.md), а оставшиеся шаги после получения сервера — в [`../docs/production-deploy-checklist.md`](../docs/production-deploy-checklist.md).
+
 Подпись `initData` проверяется по [алгоритму MAX](https://dev.max.ru/docs/webapps/validation) `HMAC-SHA256(HMAC-SHA256("WebAppData", BOT_TOKEN), launch_params)` с проверкой `auth_date` (по умолчанию один час). Клиентский `initDataUnsafe` не используется для удостоверения личности. Диплинк QR в MAX имеет вид `https://max.ru/<botName>?startapp=<token>`.
 
 ## Основные API

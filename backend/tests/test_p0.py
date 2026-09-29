@@ -142,3 +142,40 @@ def test_operator_bootstrap_creates_real_teacher(db_engine):
         group = db.scalar(select(Group).where(Group.name == "Тест-2026"))
         assert teacher.role == "teacher"
         assert db.get(TeacherGroup, (teacher.id, group.id)) is not None
+
+
+def test_imported_max_account_can_check_in_and_unlisted_account_cannot(client):
+    teacher = login(client, "teacher.demo")
+    group = client.post("/api/v1/groups", headers=teacher, json={"name": "Тестовая MAX-группа"})
+    assert group.status_code == 200
+    group_id = group.json()["id"]
+    imported = client.post(
+        f"/api/v1/groups/{group_id}/enrollments/import", headers=teacher,
+        files={"file": ("roster.csv", "max_user_id,display_name\n40001,Тестовый студент\n", "text/csv")},
+    )
+    assert imported.status_code == 200
+    assert imported.json()["imported"] == 1
+
+    now = int(datetime.now(timezone.utc).timestamp())
+    enrolled_auth = client.post(
+        "/api/v1/auth/max", json={"init_data": signed_init_data("test-bot-token", 40001, now)},
+    )
+    unlisted_auth = client.post(
+        "/api/v1/auth/max", json={"init_data": signed_init_data("test-bot-token", 40002, now)},
+    )
+    assert enrolled_auth.status_code == 200
+    assert unlisted_auth.status_code == 200
+    enrolled = {"Authorization": f"Bearer {enrolled_auth.json()['access_token']}"}
+    unlisted = {"Authorization": f"Bearer {unlisted_auth.json()['access_token']}"}
+
+    session = client.post(
+        f"/api/v1/groups/{group_id}/sessions", headers=teacher, json={"title": "Демо MAX"},
+    )
+    assert session.status_code == 200
+    qr = client.post(f"/api/v1/sessions/{session.json()['id']}/qr-token", headers=teacher).json()["token"]
+    assert client.get("/api/v1/check-in/context", headers=enrolled, params={"token": qr}).json()["status"] == "available"
+    assert client.get("/api/v1/check-in/context", headers=unlisted, params={"token": qr}).json()["status"] == "not_enrolled"
+    assert client.post("/api/v1/check-ins", headers=enrolled, json={"qr_token": qr}).status_code == 200
+    denied = client.post("/api/v1/check-ins", headers=unlisted, json={"qr_token": qr})
+    assert denied.status_code == 403
+    assert denied.json()["error"]["code"] == "STUDENT_NOT_ENROLLED"
