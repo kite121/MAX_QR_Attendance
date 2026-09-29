@@ -61,3 +61,24 @@ export async function requestBlob(
   if (!response.ok) throw await parseError(response);
   return response.blob();
 }
+
+export async function requestFormData<T>(
+  path: string,
+  body: FormData,
+  options: Omit<RequestOptions, 'body' | 'headers'> = {},
+): Promise<T> {
+  const { accessToken, ...init } = options;
+  const response = await fetch(`${env.apiUrl}${path}`, {
+    ...init,
+    method: 'POST',
+    body,
+    headers: {
+      Accept: 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+
+  if (!response.ok) throw await parseError(response);
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}

@@ -11,6 +11,7 @@ import { isApiError } from '../shared/api/ApiError';
 import type { Group } from '../shared/api/types';
 import { formatLongDate } from '../shared/lib/date';
 import { AppHeader } from '../shared/ui/AppHeader';
+import { AuditLog } from '../shared/ui/AuditLog';
 import { StateView } from '../shared/ui/StateView';
 
 export function TeacherHomePage() {
@@ -53,11 +54,29 @@ export function TeacherHomePage() {
     enabled: Boolean(accessToken && effectiveGroupId),
   });
 
+  const statsQuery = useQuery({
+    queryKey: queryKeys.groupStats(effectiveGroupId),
+    queryFn: ({ signal }) => api.getGroupStats(accessToken!, effectiveGroupId, signal),
+    enabled: Boolean(accessToken && effectiveGroupId),
+  });
+
+  const auditQuery = useQuery({
+    queryKey: queryKeys.groupAudit(effectiveGroupId),
+    queryFn: ({ signal }) => api.getGroupAudit(accessToken!, effectiveGroupId, signal),
+    enabled: Boolean(accessToken && effectiveGroupId),
+  });
+
   const createSession = useMutation({
     mutationFn: () => api.createSession(accessToken!, selectedGroup!.id, title.trim()),
     onSuccess: (session) => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.sessions(session.group_id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.groupStats(session.group_id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.groupAudit(session.group_id),
       });
       navigate(`/teacher/sessions/${session.id}`);
     },
@@ -69,8 +88,12 @@ export function TeacherHomePage() {
         max_user_id: maxUserId.trim(),
         display_name: studentName.trim(),
       }),
-    onSuccess: async (student) => {
-      setEnrollmentSuccess(`${student.display_name} добавлен в группу`);
+    onSuccess: async (result) => {
+      setEnrollmentSuccess(
+        result.imported
+          ? `Добавлено студентов: ${result.imported}`
+          : 'Студент уже состоит в группе',
+      );
       setMaxUserId('');
       setStudentName('');
       await Promise.all([
@@ -78,6 +101,34 @@ export function TeacherHomePage() {
           queryKey: queryKeys.groupStudents(effectiveGroupId),
         }),
         queryClient.invalidateQueries({ queryKey: queryKeys.groups }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.groupStats(effectiveGroupId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.groupAudit(effectiveGroupId),
+        }),
+      ]);
+    },
+  });
+
+  const importRoster = useMutation({
+    mutationFn: (file: File) =>
+      api.importStudentsCsv(accessToken!, effectiveGroupId, file),
+    onSuccess: async (result) => {
+      setEnrollmentSuccess(
+        `Импорт завершён: добавлено ${result.imported}, уже в группе ${result.already_enrolled}`,
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.groupStudents(effectiveGroupId),
+        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.groups }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.groupStats(effectiveGroupId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.groupAudit(effectiveGroupId),
+        }),
       ]);
     },
   });
@@ -182,6 +233,46 @@ export function TeacherHomePage() {
             ) : null}
 
             <div className="teacher-dashboard__grid">
+              <section
+                className="surface-card group-stats-card"
+                aria-label="Статистика группы"
+              >
+                <div className="section-heading">
+                  <div>
+                    <span className="eyebrow">Сводка группы</span>
+                    <h2>Посещаемость</h2>
+                  </div>
+                </div>
+                {statsQuery.isError ? (
+                  <div className="notice notice--error">
+                    Не удалось загрузить статистику.
+                  </div>
+                ) : (
+                  <dl className="group-stats">
+                    <div>
+                      <dt>Занятий</dt>
+                      <dd>{statsQuery.data?.sessions_count ?? '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>Завершено</dt>
+                      <dd>{statsQuery.data?.closed_sessions_count ?? '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>Отметок</dt>
+                      <dd>{statsQuery.data?.total_check_ins ?? '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>Средняя посещаемость</dt>
+                      <dd>
+                        {statsQuery.data
+                          ? `${statsQuery.data.average_attendance_percent}%`
+                          : '—'}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+              </section>
+
               <section className="surface-card dashboard-card">
                 <div className="section-heading">
                   <div>
@@ -301,8 +392,62 @@ export function TeacherHomePage() {
                     Добавить в группу
                   </Button>
                 </form>
+
+                <div className="csv-import">
+                  <h3>Импортировать список</h3>
+                  <p>
+                    CSV с колонками <code>max_user_id,display_name</code>, до 1000 строк.
+                  </p>
+                  <label className="csv-import__control">
+                    <span>
+                      {importRoster.isPending ? 'Импортируем…' : 'Выбрать CSV-файл'}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".csv,text/csv"
+                      disabled={importRoster.isPending}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        setEnrollmentSuccess('');
+                        if (file) importRoster.mutate(file);
+                        event.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                  {importRoster.isError ? (
+                    <div className="notice notice--error">
+                      {isApiError(importRoster.error)
+                        ? importRoster.error.message
+                        : 'Не удалось импортировать CSV'}
+                    </div>
+                  ) : null}
+                </div>
               </section>
             </div>
+
+            <section className="surface-card history-card">
+              <div className="section-heading">
+                <div>
+                  <span className="eyebrow">Журнал изменений</span>
+                  <h2>Аудит группы</h2>
+                </div>
+              </div>
+              {auditQuery.isError ? (
+                <StateView
+                  icon="!"
+                  title="Журнал аудита недоступен"
+                  actionLabel="Повторить"
+                  onAction={() => void auditQuery.refetch()}
+                />
+              ) : auditQuery.isPending ? (
+                <p className="muted-copy">Загружаем журнал…</p>
+              ) : (
+                <AuditLog
+                  items={auditQuery.data.items}
+                  students={studentsQuery.data?.items}
+                />
+              )}
+            </section>
 
             <section className="surface-card history-card">
               <div className="section-heading">

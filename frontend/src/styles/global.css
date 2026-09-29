@@ -906,6 +906,34 @@ select {
   align-items: start;
 }
 
+.group-stats-card {
+  grid-column: 1 / -1;
+}
+
+.group-stats {
+  margin: 18px 0 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.group-stats > div {
+  padding: 15px;
+  background: #f8f7fb;
+  border-radius: 14px;
+}
+
+.group-stats dt {
+  color: #777b86;
+  font-size: 0.82rem;
+}
+
+.group-stats dd {
+  margin: 5px 0 0;
+  font-size: 1.35rem;
+  font-weight: 750;
+}
+
 .dashboard-card {
   min-width: 0;
 }
@@ -973,6 +1001,84 @@ select {
   margin: 0;
 }
 
+.csv-import {
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid #e7e6ed;
+}
+
+.csv-import h3,
+.csv-import p {
+  margin: 0 0 10px;
+}
+
+.csv-import p {
+  color: #777b86;
+  font-size: 0.88rem;
+}
+
+.csv-import__control {
+  position: relative;
+  min-height: 44px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  color: #6140d8;
+  font-weight: 650;
+  background: #f0ebff;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.csv-import__control input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.csv-import .notice {
+  margin-top: 12px;
+}
+
+.audit-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.audit-list li {
+  position: relative;
+  padding: 12px 0 12px 24px;
+  display: flex;
+  gap: 12px;
+  border-bottom: 1px solid #ecebf1;
+}
+
+.audit-list li:last-child {
+  border-bottom: 0;
+}
+
+.audit-list__marker {
+  position: absolute;
+  top: 20px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  background: #7657ea;
+  border-radius: 50%;
+}
+
+.audit-list p,
+.audit-list small {
+  margin: 4px 0 0;
+  display: block;
+  color: #777b86;
+}
+
 .muted-copy {
   color: #777b86;
 }
@@ -1033,6 +1139,14 @@ select {
 
   .teacher-dashboard__grid {
     grid-template-columns: 1fr;
+  }
+
+  .group-stats-card {
+    grid-column: auto;
+  }
+
+  .group-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .session-heading {

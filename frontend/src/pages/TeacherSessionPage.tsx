@@ -14,6 +14,7 @@ import type { ManualCorrectionInput } from '../shared/api/types';
 import { formatLongDate } from '../shared/lib/date';
 import { useNow } from '../shared/lib/useNow';
 import { AppHeader } from '../shared/ui/AppHeader';
+import { AuditLog } from '../shared/ui/AuditLog';
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog';
 import { StateView } from '../shared/ui/StateView';
 
@@ -53,6 +54,12 @@ export function TeacherSessionPage() {
     refetchInterval: (query) => (query.state.data?.status === 'closed' ? false : 1_000),
   });
 
+  const auditQuery = useQuery({
+    queryKey: queryKeys.sessionAudit(sessionId),
+    queryFn: ({ signal }) => api.getSessionAudit(accessToken!, sessionId, signal),
+    enabled: Boolean(accessToken && sessionId),
+  });
+
   const isClosed =
     sessionQuery.data?.status === 'closed' || checkInsQuery.data?.status === 'closed';
 
@@ -73,6 +80,7 @@ export function TeacherSessionPage() {
       queryClient.removeQueries({ queryKey: queryKeys.qrToken(sessionId) });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.checkIns(sessionId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.sessionAudit(sessionId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.sessions(result.group_id) }),
         queryClient.invalidateQueries({
           queryKey: queryKeys.activeSession(result.group_id),
@@ -87,6 +95,7 @@ export function TeacherSessionPage() {
     onMutate: () => setCorrectionSuccess(''),
     onSuccess: async (result) => {
       queryClient.setQueryData(queryKeys.checkIns(sessionId), result);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sessionAudit(sessionId) });
       setCorrectionSuccess('Изменение сохранено');
       if (groupId) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.sessions(groupId) });
@@ -213,6 +222,29 @@ export function TeacherSessionPage() {
           </section>
 
           <div className="session-tools">{correctionPanel}</div>
+          <section className="surface-card history-card">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">История изменений</span>
+                <h2>Аудит занятия</h2>
+              </div>
+            </div>
+            {auditQuery.isPending ? (
+              <p className="muted-copy">Загружаем журнал…</p>
+            ) : auditQuery.isError ? (
+              <StateView
+                icon="!"
+                title="Журнал аудита недоступен"
+                actionLabel="Повторить"
+                onAction={() => void auditQuery.refetch()}
+              />
+            ) : (
+              <AuditLog
+                items={auditQuery.data.items}
+                students={studentsQuery.data?.items}
+              />
+            )}
+          </section>
           <Button size="large" variant="secondary" onClick={() => navigate('/teacher')}>
             К истории занятий
           </Button>
@@ -327,6 +359,29 @@ export function TeacherSessionPage() {
         </div>
 
         <div className="session-tools">{correctionPanel}</div>
+        <section className="surface-card history-card">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">История изменений</span>
+              <h2>Аудит занятия</h2>
+            </div>
+          </div>
+          {auditQuery.isPending ? (
+            <p className="muted-copy">Загружаем журнал…</p>
+          ) : auditQuery.isError ? (
+            <StateView
+              icon="!"
+              title="Журнал аудита недоступен"
+              actionLabel="Повторить"
+              onAction={() => void auditQuery.refetch()}
+            />
+          ) : (
+            <AuditLog
+              items={auditQuery.data.items}
+              students={studentsQuery.data?.items}
+            />
+          )}
+        </section>
       </div>
 
       <ConfirmDialog

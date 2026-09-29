@@ -1,6 +1,8 @@
 import { ApiError } from './ApiError';
 import type {
   AttendanceSession,
+  AuditItem,
+  AuditResponse,
   AuthResponse,
   CheckInContext,
   CheckInItem,
@@ -8,7 +10,9 @@ import type {
   CheckInsResponse,
   EnrollStudentInput,
   Group,
+  GroupStats,
   GroupsResponse,
+  ImportStudentsResult,
   ManualCorrectionInput,
   QrTokenResponse,
   SessionsResponse,
@@ -35,6 +39,7 @@ interface MockDatabase {
   checkIns: Array<CheckInItem & { sessionId: string }>;
   customStudents: MockUser[];
   enrollments: Array<{ groupId: string; studentId: string }>;
+  auditEvents: Array<AuditItem & { groupId: string; sessionId: string | null }>;
 }
 
 const DATABASE_KEY = 'baam-max-mock-database-v1';
@@ -91,6 +96,7 @@ function readDatabase(): MockDatabase {
     checkIns: [],
     customStudents: [],
     enrollments: [],
+    auditEvents: [],
   };
   try {
     const value = localStorage.getItem(DATABASE_KEY);
@@ -101,6 +107,7 @@ function readDatabase(): MockDatabase {
       ...stored,
       customStudents: stored.customStudents ?? [],
       enrollments: stored.enrollments ?? [],
+      auditEvents: stored.auditEvents ?? [],
     };
   } catch {
     return emptyDatabase;
@@ -141,6 +148,62 @@ function requireRole(accessToken: string, role: User['role']): MockUser {
 
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
+}
+
+function addAuditEvent(
+  database: MockDatabase,
+  teacher: MockUser,
+  groupId: string,
+  action: string,
+  details: Partial<
+    Pick<AuditItem, 'subject_student_id' | 'reason' | 'old_value' | 'new_value'>
+  > = {},
+  sessionId: string | null = null,
+): void {
+  database.auditEvents.push({
+    id: createId('audit'),
+    actor_id: teacher.id,
+    action,
+    subject_student_id: details.subject_student_id ?? null,
+    reason: details.reason ?? null,
+    old_value: details.old_value ?? null,
+    new_value: details.new_value ?? null,
+    created_at: new Date().toISOString(),
+    groupId,
+    sessionId,
+  });
+}
+
+function parseCsvRow(line: string, delimiter: string): string[] {
+  const cells: string[] = [];
+  let cell = '';
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"' && quoted && line[index + 1] === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === delimiter && !quoted) {
+      cells.push(cell);
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+  cells.push(cell);
+  return cells;
+}
+
+async function readTextFile(file: File): Promise<string> {
+  if (typeof file.text === 'function') return file.text();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error('Не удалось прочитать CSV'));
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.readAsText(file, 'utf-8');
+  });
 }
 
 function isEnrolled(student: MockUser, groupId: string, database: MockDatabase): boolean {
@@ -243,38 +306,192 @@ export const mockApi = {
     accessToken: string,
     groupId: string,
     input: EnrollStudentInput,
-  ): Promise<Student> {
+  ): Promise<ImportStudentsResult> {
+    const file = new File(
+      [
+        `max_user_id,display_name\n${input.max_user_id},"${input.display_name.replaceAll('"', '""')}"`,
+      ],
+      'students.csv',
+      { type: 'text/csv;charset=utf-8' },
+    );
+    return this.importStudentsCsv(accessToken, groupId, file);
+  },
+
+  async importStudentsCsv(
+    accessToken: string,
+    groupId: string,
+    file: File,
+  ): Promise<ImportStudentsResult> {
     await wait();
-    requireTeacherGroup(accessToken, groupId);
-    const maxUserId = input.max_user_id.trim();
-    const displayName = input.display_name.trim();
-    if (!/^\d{1,20}$/.test(maxUserId) || !displayName) {
+    const teacher = requireTeacherGroup(accessToken, groupId);
+    if (!file.name.toLocaleLowerCase('en-US').endsWith('.csv')) {
+      throw new ApiError('VALIDATION_ERROR', 'Загрузите CSV-файл', 422);
+    }
+    if (file.size > 200_000) {
+      throw new ApiError('VALIDATION_ERROR', 'CSV-файл слишком большой', 422);
+    }
+    const contents = (await readTextFile(file)).replace(/^\uFEFF/, '');
+    const lines = contents
+      .split(/\r?\n/)
+      .filter((line, index, all) => line || index < all.length - 1);
+    const delimiter =
+      (lines[0]?.match(/;/g)?.length ?? 0) > (lines[0]?.match(/,/g)?.length ?? 0)
+        ? ';'
+        : ',';
+    const headers = parseCsvRow(lines[0] ?? '', delimiter).map((value) => value.trim());
+    const maxIdIndex = headers.indexOf('max_user_id');
+    const nameIndex = headers.indexOf('display_name');
+    if (maxIdIndex < 0 || nameIndex < 0) {
       throw new ApiError(
         'VALIDATION_ERROR',
-        'Укажите числовой MAX ID и имя студента',
+        'CSV должен содержать колонки max_user_id,display_name',
         422,
       );
     }
-
-    const database = readDatabase();
-    let student = allStudents(database).find((item) => item.max_user_id === maxUserId);
-    if (!student) {
-      student = {
-        id: createId('student'),
-        max_user_id: maxUserId,
-        display_name: displayName,
-        role: 'student',
-        login: '',
-        password: '',
-        groupIds: [],
+    const rows = lines.slice(1).map((line, index) => {
+      const cells = parseCsvRow(line, delimiter);
+      return {
+        rowNumber: index + 2,
+        maxUserId: cells[maxIdIndex]?.trim() ?? '',
+        displayName: cells[nameIndex]?.trim() ?? '',
       };
-      database.customStudents.push(student);
+    });
+    if (rows.length < 1 || rows.length > 1000) {
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        'CSV должен содержать от 1 до 1000 строк',
+        422,
+      );
     }
-    if (!isEnrolled(student, groupId, database)) {
-      database.enrollments.push({ groupId, studentId: student.id });
+    const seen = new Set<string>();
+    for (const row of rows) {
+      if (
+        !/^\d{1,20}$/.test(row.maxUserId) ||
+        !row.displayName ||
+        row.displayName.length > 160 ||
+        seen.has(row.maxUserId)
+      ) {
+        throw new ApiError(
+          'VALIDATION_ERROR',
+          `Некорректная или повторная запись в строке ${row.rowNumber}`,
+          422,
+        );
+      }
+      seen.add(row.maxUserId);
+      const existing = allStudents(readDatabase()).find(
+        (student) => student.max_user_id === row.maxUserId,
+      );
+      if (
+        !existing &&
+        [...users, ...readDatabase().customStudents].some(
+          (user) => user.max_user_id === row.maxUserId,
+        )
+      ) {
+        throw new ApiError(
+          'VALIDATION_ERROR',
+          'CSV содержит идентификатор преподавателя',
+          422,
+        );
+      }
     }
+    const database = readDatabase();
+    let imported = 0;
+    let already_enrolled = 0;
+    for (const row of rows) {
+      let student = allStudents(database).find(
+        (item) => item.max_user_id === row.maxUserId,
+      );
+      if (!student) {
+        student = {
+          id: createId('student'),
+          max_user_id: row.maxUserId,
+          display_name: row.displayName,
+          role: 'student',
+          login: '',
+          password: '',
+          groupIds: [],
+        };
+        database.customStudents.push(student);
+      }
+      if (isEnrolled(student, groupId, database)) {
+        already_enrolled += 1;
+      } else {
+        database.enrollments.push({ groupId, studentId: student.id });
+        imported += 1;
+      }
+    }
+    addAuditEvent(database, teacher, groupId, 'roster_import', {
+      reason: `imported=${imported}; already_enrolled=${already_enrolled}`,
+    });
     writeDatabase(database);
-    return publicStudent(student);
+    return { imported, already_enrolled };
+  },
+
+  async getGroupStats(accessToken: string, groupId: string): Promise<GroupStats> {
+    await wait();
+    requireTeacherGroup(accessToken, groupId);
+    const database = readDatabase();
+    const sessions = database.sessions.filter((session) => session.group_id === groupId);
+    const studentCount = allStudents(database).filter((student) =>
+      isEnrolled(student, groupId, database),
+    ).length;
+    const totalCheckIns = database.checkIns.filter((item) =>
+      sessions.some((session) => session.id === item.sessionId),
+    ).length;
+    const denominator = sessions.length * studentCount;
+    return {
+      group_id: groupId,
+      sessions_count: sessions.length,
+      closed_sessions_count: sessions.filter((session) => session.status === 'closed')
+        .length,
+      total_check_ins: totalCheckIns,
+      average_attendance_percent: denominator
+        ? Math.round((1000 * totalCheckIns) / denominator) / 10
+        : 0,
+    };
+  },
+
+  async getGroupAudit(accessToken: string, groupId: string): Promise<AuditResponse> {
+    await wait();
+    requireTeacherGroup(accessToken, groupId);
+    return {
+      items: readDatabase()
+        .auditEvents.filter((item) => item.groupId === groupId)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 500)
+        .map((event) => ({
+          id: event.id,
+          actor_id: event.actor_id,
+          action: event.action,
+          subject_student_id: event.subject_student_id,
+          reason: event.reason,
+          old_value: event.old_value,
+          new_value: event.new_value,
+          created_at: event.created_at,
+        })),
+    };
+  },
+
+  async getSessionAudit(accessToken: string, sessionId: string): Promise<AuditResponse> {
+    await wait();
+    const database = readDatabase();
+    requireTeacherSession(accessToken, sessionId, database);
+    return {
+      items: database.auditEvents
+        .filter((item) => item.sessionId === sessionId)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 500)
+        .map((event) => ({
+          id: event.id,
+          actor_id: event.actor_id,
+          action: event.action,
+          subject_student_id: event.subject_student_id,
+          reason: event.reason,
+          old_value: event.old_value,
+          new_value: event.new_value,
+          created_at: event.created_at,
+        })),
+    };
   },
 
   async createSession(
@@ -302,6 +519,7 @@ export const mockApi = {
       started_at: new Date().toISOString(),
     };
     database.sessions.push(session);
+    addAuditEvent(database, teacher, groupId, 'session_created', {}, session.id);
     writeDatabase(database);
     return session;
   },
@@ -422,6 +640,17 @@ export const mockApi = {
       attendance_status: 'present',
       source: 'qr',
     });
+    const session = database.sessions.find((item) => item.id === context.session_id);
+    if (session) {
+      addAuditEvent(
+        database,
+        student,
+        session.group_id,
+        'check_in_created',
+        { subject_student_id: student.id, new_value: 'present' },
+        session.id,
+      );
+    }
     writeDatabase(database);
     return {
       status: 'checked_in',
@@ -505,6 +734,19 @@ export const mockApi = {
       database.checkIns[existingIndex].attendance_status = input.attendance_status;
       database.checkIns[existingIndex].source = 'manual';
     }
+    addAuditEvent(
+      database,
+      requireRole(accessToken, 'teacher'),
+      session.group_id,
+      `manual_${input.action}`,
+      {
+        subject_student_id: student.id,
+        reason: input.reason.trim(),
+        new_value:
+          input.action === 'remove' ? null : (input.attendance_status ?? 'present'),
+      },
+      session.id,
+    );
     writeDatabase(database);
     return this.getCheckIns(accessToken, sessionId);
   },
@@ -555,6 +797,14 @@ export const mockApi = {
     session.present_count = database.checkIns.filter(
       (item) => item.sessionId === sessionId,
     ).length;
+    addAuditEvent(
+      database,
+      requireRole(accessToken, 'teacher'),
+      session.group_id,
+      'session_closed',
+      {},
+      session.id,
+    );
     writeDatabase(database);
     return session;
   },

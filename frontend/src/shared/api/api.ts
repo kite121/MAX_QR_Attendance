@@ -1,18 +1,20 @@
 import { env } from '../../config/env';
-import { request, requestBlob } from './httpClient';
+import { request, requestBlob, requestFormData } from './httpClient';
 import { mockApi } from './mockApi';
 import type {
   AttendanceSession,
+  AuditResponse,
   AuthResponse,
   CheckInContext,
   CheckInResult,
   CheckInsResponse,
   EnrollStudentInput,
+  GroupStats,
   GroupsResponse,
+  ImportStudentsResult,
   ManualCorrectionInput,
   QrTokenResponse,
   SessionsResponse,
-  Student,
   StudentsResponse,
 } from './types';
 
@@ -54,12 +56,58 @@ export const api = {
     accessToken: string,
     groupId: string,
     input: EnrollStudentInput,
-  ): Promise<Student> {
+  ): Promise<ImportStudentsResult> {
     if (env.useMockApi) return mockApi.enrollStudent(accessToken, groupId, input);
-    return request<Student>(`/groups/${groupId}/enrollments`, {
-      method: 'POST',
+    const csv = `max_user_id,display_name\n${input.max_user_id},"${input.display_name.replaceAll('"', '""')}"`;
+    return this.importStudentsCsv(
       accessToken,
-      body: input,
+      groupId,
+      new File([csv], 'students.csv', { type: 'text/csv;charset=utf-8' }),
+    );
+  },
+
+  importStudentsCsv(
+    accessToken: string,
+    groupId: string,
+    file: File,
+  ): Promise<ImportStudentsResult> {
+    if (env.useMockApi) return mockApi.importStudentsCsv(accessToken, groupId, file);
+    const form = new FormData();
+    form.append('file', file);
+    return requestFormData<ImportStudentsResult>(
+      `/groups/${groupId}/enrollments/import`,
+      form,
+      { accessToken },
+    );
+  },
+
+  getGroupStats(
+    accessToken: string,
+    groupId: string,
+    signal?: AbortSignal,
+  ): Promise<GroupStats> {
+    if (env.useMockApi) return mockApi.getGroupStats(accessToken, groupId);
+    return request<GroupStats>(`/groups/${groupId}/stats`, { accessToken, signal });
+  },
+
+  getGroupAudit(
+    accessToken: string,
+    groupId: string,
+    signal?: AbortSignal,
+  ): Promise<AuditResponse> {
+    if (env.useMockApi) return mockApi.getGroupAudit(accessToken, groupId);
+    return request<AuditResponse>(`/groups/${groupId}/audit`, { accessToken, signal });
+  },
+
+  getSessionAudit(
+    accessToken: string,
+    sessionId: string,
+    signal?: AbortSignal,
+  ): Promise<AuditResponse> {
+    if (env.useMockApi) return mockApi.getSessionAudit(accessToken, sessionId);
+    return request<AuditResponse>(`/sessions/${sessionId}/audit`, {
+      accessToken,
+      signal,
     });
   },
 
