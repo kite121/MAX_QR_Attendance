@@ -22,4 +22,4 @@
 - Повторная отметка блокируется приложением и ограничением уникальности в базе.
 - Права преподавателя и студента проверяются на сервере.
 
-Согласованный клиентский контракт зафиксирован в [`frontend-api-contract.md`](frontend-api-contract.md), полный OpenAPI — в [`openapi.json`](openapi.json). Backend сохраняет P0-пути текущего frontend. Дополнительные P1-пути пока не подключены к UI. Ограничения прототипа и модель угроз — в [`backend-security.md`](backend-security.md).
+Согласованный клиентский контракт зафиксирован в [`frontend-api-contract.md`](frontend-api-contract.md), полный OpenAPI — в [`openapi.json`](openapi.json). P0/P1-пути подключены к UI: история, экспорт/импорт CSV, ручные исправления, аудит и статистика. Публичный frontend допускает вход только через MAX; synthetic demo-вход доступен в dev-сервере и явно выбранной demo-сборке. Ограничения прототипа и модель угроз — в [`backend-security.md`](backend-security.md).

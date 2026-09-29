@@ -1,4 +1,4 @@
-import type { AuditItem, Student } from '../api/types';
+import type { AuditItem, Student, User } from '../api/types';
 import { formatLongDate } from '../lib/date';
 
 const actionLabels: Record<string, string> = {
@@ -17,12 +17,14 @@ const actionLabels: Record<string, string> = {
 interface AuditLogProps {
   items: AuditItem[];
   students?: Student[];
+  currentUser?: User | null;
   emptyMessage?: string;
 }
 
 export function AuditLog({
   items,
   students = [],
+  currentUser,
   emptyMessage = 'Событий пока нет.',
 }: AuditLogProps) {
   if (items.length === 0) return <p className="muted-copy">{emptyMessage}</p>;
@@ -37,7 +39,38 @@ export function AuditLog({
         if (item.subject_student_id) {
           details.push(studentNames.get(item.subject_student_id) ?? 'Студент группы');
         }
-        if (item.reason) details.push(item.reason);
+        const statusLabels: Record<string, string> = {
+          present: 'Вовремя',
+          late: 'Опоздал',
+          absent: 'Отсутствует',
+        };
+        if (item.old_value || item.new_value) {
+          const oldValue = item.old_value
+            ? (statusLabels[item.old_value] ?? item.old_value)
+            : null;
+          const newValue = item.new_value
+            ? (statusLabels[item.new_value] ?? item.new_value)
+            : null;
+          details.push(
+            oldValue && newValue ? `${oldValue} → ${newValue}` : (newValue ?? oldValue!),
+          );
+        }
+        const importCounts =
+          item.action === 'roster_import'
+            ? item.reason?.match(/^imported=(\d+);\s*already_enrolled=(\d+)$/)
+            : null;
+        if (importCounts) {
+          details.push(
+            `Добавлено: ${importCounts[1]} · Уже в группе: ${importCounts[2]}`,
+          );
+        } else if (item.reason) {
+          details.push(item.reason);
+        }
+        const actor =
+          item.actor_id === currentUser?.id
+            ? currentUser.display_name
+            : (studentNames.get(item.actor_id) ??
+              (item.action === 'check_in_created' ? 'Студент' : 'Преподаватель'));
         return (
           <li key={item.id}>
             <span className="audit-list__marker" aria-hidden="true" />
@@ -45,8 +78,7 @@ export function AuditLog({
               <strong>{actionLabels[item.action] ?? item.action}</strong>
               {details.length > 0 ? <p>{details.join(' · ')}</p> : null}
               <small>
-                {formatLongDate(item.created_at)} ·{' '}
-                {item.action === 'check_in_created' ? 'Студент' : 'Преподаватель'}
+                {formatLongDate(item.created_at)} · {actor}
               </small>
             </div>
           </li>

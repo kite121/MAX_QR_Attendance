@@ -41,7 +41,10 @@ services:
       retries: 20
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        FRONTEND_BUILD_MODE: ${FRONTEND_BUILD_MODE:-production}
     depends_on:
       backend:
         condition: service_healthy

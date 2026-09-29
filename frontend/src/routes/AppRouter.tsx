@@ -1,12 +1,21 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../features/auth/AuthProvider';
-import { DevLoginPage } from '../pages/DevLoginPage';
+import { MaxLoginPage } from '../pages/MaxLoginPage';
 import { StudentCheckInPage } from '../pages/StudentCheckInPage';
 import { TeacherHomePage } from '../pages/TeacherHomePage';
 import { TeacherSessionPage } from '../pages/TeacherSessionPage';
 import { StateView } from '../shared/ui/StateView';
+
+const DemoLoginPage =
+  import.meta.env.DEV || import.meta.env.MODE === 'demo'
+    ? lazy(() =>
+        import('../pages/DevLoginPage').then((module) => ({
+          default: module.DevLoginPage,
+        })),
+      )
+    : null;
 
 export function AppRouter() {
   const { status, user } = useAuth();
@@ -29,7 +38,13 @@ export function AppRouter() {
   }
 
   if (status === 'anonymous' || !user) {
-    return <DevLoginPage />;
+    return DemoLoginPage ? (
+      <Suspense fallback={<StateView loading title="Загружаем вход" />}>
+        <DemoLoginPage />
+      </Suspense>
+    ) : (
+      <MaxLoginPage />
+    );
   }
 
   const homePath = user.role === 'teacher' ? '/teacher' : '/student/check-in';

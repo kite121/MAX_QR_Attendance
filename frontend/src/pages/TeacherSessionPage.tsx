@@ -22,7 +22,7 @@ export function TeacherSessionPage() {
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const now = useNow();
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [copyLabel, setCopyLabel] = useState('Скопировать ссылку');
@@ -242,6 +242,7 @@ export function TeacherSessionPage() {
               <AuditLog
                 items={auditQuery.data.items}
                 students={studentsQuery.data?.items}
+                currentUser={user}
               />
             )}
           </section>
@@ -379,6 +380,7 @@ export function TeacherSessionPage() {
             <AuditLog
               items={auditQuery.data.items}
               students={studentsQuery.data?.items}
+              currentUser={user}
             />
           )}
         </section>
