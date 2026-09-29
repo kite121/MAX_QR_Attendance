@@ -9,7 +9,8 @@ Recorded on 29 September 2026 against the `feat/backend-release-readiness` branc
 | QR and manual attendance | Passed | A new synthetic session stored one QR and one manual mark; duplicates and unlisted students were rejected. |
 | Persistence after stop/start | Passed | The same closed session, both marks, audit event, CSV and history were readable after restarting all three test containers without deleting the volume. Direct PostgreSQL result: `closed|2|1|1` (status, total, QR, manual). |
 | Parallel check-in on PostgreSQL | Passed | Two simultaneous HTTP requests returned one `200` and one `409`; a direct SQL query found exactly one `check_ins` row. |
-| Backend unit/contract tests | 15 passed, 1 skipped | The optional `test_postgres.py` needs `TEST_POSTGRES_URL`; the separate live HTTP concurrency check above covered the PostgreSQL race locally. |
+| Backend unit/contract tests | 16 passed, 1 skipped | The optional `test_postgres.py` needs `TEST_POSTGRES_URL`; the separate live HTTP concurrency check above covered the PostgreSQL race locally. |
+| Backend runtime user | Passed | Rebuilt test backend runs as UID `10001`, not root; healthcheck and persistence check still pass. |
 | nginx configuration | Passed | `nginx -t` succeeded after disabling Mini App access logs that could contain QR start parameters. External HTTPS-proxy logging remains to be checked. |
 | Image metadata and local request logs | Passed for checked patterns | Neither test image contained `MAX_BOT_TOKEN`, `JWT_SECRET` or `POSTGRES_PASSWORD` environment keys; a synthetic `startapp` marker did not appear in frontend container logs. This is not a full secret scan of image layers or Git history. |
 | Environment-file tracking | Passed for checked paths | `.env`, `backend/.env` and `frontend/.env` are absent from tracked files and their Git path history. Perform a dedicated whole-history secret scan before public release. |

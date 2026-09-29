@@ -6,11 +6,14 @@ from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+DEFAULT_DATABASE_URL = "postgresql+psycopg://attendance:attendance@localhost:5432/attendance"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     environment: Literal["development", "production"] = "development"
-    database_url: str = "postgresql+psycopg://attendance:attendance@localhost:5432/attendance"
+    database_url: str = DEFAULT_DATABASE_URL
     jwt_secret: str = ""
     access_token_minutes: int = Field(default=30, ge=1, le=1440)
     max_bot_token: str = ""
@@ -40,7 +43,9 @@ class Settings(BaseSettings):
             raise ValueError("Mock authentication cannot be enabled in production")
         if self.environment == "production" and self.jwt_secret.startswith("local-development-secret"):
             raise ValueError("Replace the local JWT secret before production deployment")
-        if self.environment == "production" and "local-attendance-password" in self.database_url:
+        if self.environment == "production" and (
+            self.database_url == DEFAULT_DATABASE_URL or "local-attendance-password" in self.database_url
+        ):
             raise ValueError("Replace the local database password before production deployment")
         if self.environment == "production" and (not self.max_bot_token or not self.max_bot_name):
             raise ValueError("MAX_BOT_TOKEN and MAX_BOT_NAME are required in production")

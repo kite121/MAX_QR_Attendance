@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.config import Settings
+from app.config import DEFAULT_DATABASE_URL, Settings
 
 
 def test_production_rejects_mock_login():
@@ -32,6 +32,18 @@ def test_production_requires_bot_identity():
 def test_environment_typo_cannot_bypass_production_guards():
     with pytest.raises(ValidationError, match="environment"):
         Settings(_env_file=None, environment="prod")
+
+
+def test_production_rejects_default_database_credentials():
+    with pytest.raises(ValidationError, match="Replace the local database password"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            database_url=DEFAULT_DATABASE_URL,
+            jwt_secret="test-only-secret-longer-than-thirty-two-characters",
+            max_bot_token="test-bot-token",
+            max_bot_name="test_bot",
+        )
 
 
 def test_mock_login_is_unusable_when_disabled(client, settings):
