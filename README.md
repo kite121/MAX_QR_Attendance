@@ -44,6 +44,7 @@ Frontend и backend P0/P1 реализованы. Локально их можн
 
 ## Документы
 
+- [Продуктовое обоснование, пилот и масштабирование](docs/product/)
 - [Архитектура и границы компонентов](docs/architecture.md)
 - [Контракт Frontend ↔ Backend](docs/frontend-api-contract.md)
 - [Проверки frontend и оставшаяся приёмка в MAX](docs/frontend-release-checks.md)
