@@ -1,48 +1,197 @@
 version: 1
-description: Synthetic test data and API acceptance scenarios for MAX QR Attendance
-base_path: /api/v1
-openapi: openapi.json
-local_demo:
-  frontend_url: http://localhost:8080
-  backend_url: http://localhost:8000
-  password_env: DEMO_PASSWORD
-  accounts:
-    - login: teacher.demo
-      role: teacher
-      max_user_id: "10001"
-      group: group-ivt-21
-    - login: student.anna
-      role: student
-      max_user_id: "20001"
-      group: group-ivt-21
-    - login: student.kirill
-      role: student
-      max_user_id: "20002"
-      group: group-ivt-21
-    - login: student.outsider
-      role: student
-      max_user_id: "20003"
-      group: group-pmi-22
-  groups:
-    - id: group-ivt-21
-      name: ИВТ-21
-      students: 2
-    - id: group-pmi-22
-      name: ПМИ-22
-      students: 1
+name: QR-отметка
+base_url: https://app.qr-otmetka.ru
+openapi_url: https://app.qr-otmetka.ru/api/v1/openapi.json
+test_access:
+  entry_point: https://max.ru/t349_hakaton_max_bot
+  instructions: docs/jury-access.md
+  accounts: Два разных аккаунта MAX; отдельные логины и пароли проекта не нужны
+  jury_code: Первый слайд PDF-презентации
+  teacher_role: Вход через MAX, затем POST /api/v1/jury/role с role=teacher
+  student_role: Вход через MAX, затем POST /api/v1/jury/role с role=student
+  group_name: Проверка жюри
+  authorization: "Authorization: Bearer <access_token из ответа /auth/max или /jury/role>"
+dynamic_values:
+  teacher_init_data: Подписанные данные запуска Mini App в аккаунте преподавателя
+  student_init_data: Подписанные данные запуска Mini App в аккаунте студента
+  jury_code_from_pdf: Код доступа с первого слайда PDF
+  teacher_login_token: access_token из ответа /auth/max для преподавателя
+  student_login_token: access_token из ответа /auth/max для студента
+  teacher_token: access_token из ответа /jury/role для преподавателя
+  student_token: access_token из ответа /jury/role для студента
+  student_id: user.id из ответа /auth/max для студента
+  group_id: items[].id для группы «Проверка жюри» из GET /groups
+  session_id: id из ответа create_session
+  qr_token: token из ответа create_qr; использовать до expires_at
 checks:
-  - id: happy_path
-    steps: [login_teacher, get_groups, create_session, get_qr, login_student, get_context, check_in, get_check_ins, close_session]
-    expect: one_check_in_and_closed_session
-  - id: duplicate
-    expect_error: ALREADY_CHECKED_IN
-  - id: expired_qr
-    expect_error: QR_TOKEN_EXPIRED
-  - id: outsider
-    expect_error: STUDENT_NOT_ENROLLED
-  - id: closed_session
-    expect_error: SESSION_CLOSED
-  - id: teacher_correction
-    steps: [manual_add, manual_set_status, manual_remove, get_audit]
-  - id: csv
-    steps: [import_students_csv, export_session_csv]
+  - id: health
+    method: GET
+    path: /healthz
+    role: anonymous
+    request: {}
+    expected: {status: 200, content_type: application/json, required_fields: [status]}
+
+  - id: openapi
+    method: GET
+    path: /api/v1/openapi.json
+    role: anonymous
+    request: {}
+    expected: {status: 200, content_type: application/json, required_fields: [openapi, paths]}
+
+  - id: max_login_teacher
+    method: POST
+    path: /api/v1/auth/max
+    role: MAX_teacher_account
+    request:
+      headers: {Content-Type: application/json}
+      body: {init_data: "${teacher_init_data}"}
+    expected: {status: 200, content_type: application/json, required_fields: [access_token, user.id, user.max_user_id, user.role]}
+
+  - id: select_teacher_role
+    method: POST
+    path: /api/v1/jury/role
+    role: MAX_teacher_account
+    request:
+      headers: {Authorization: "Bearer ${teacher_login_token}", Content-Type: application/json}
+      body: {token: "${jury_code_from_pdf}", role: teacher}
+    expected: {status: 200, content_type: application/json, required_fields: [access_token, user.role]}
+
+  - id: teacher_groups
+    method: GET
+    path: /api/v1/groups
+    role: teacher
+    request:
+      headers: {Authorization: "Bearer ${teacher_token}"}
+    expected: {status: 200, content_type: application/json, required_fields: [items]}
+
+  - id: create_session
+    method: POST
+    path: /api/v1/groups/{group_id}/sessions
+    role: teacher
+    request:
+      path_params: {group_id: "${group_id}"}
+      headers: {Authorization: "Bearer ${teacher_token}", Content-Type: application/json}
+      body: {title: Проверка жюри}
+    expected: {status: 200, content_type: application/json, required_fields: [id, group_id, status, started_at]}
+
+  - id: create_qr
+    method: POST
+    path: /api/v1/sessions/{session_id}/qr-token
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_token}"}
+    expected: {status: 200, content_type: application/json, required_fields: [token, deep_link, expires_at]}
+
+  - id: max_login_student
+    method: POST
+    path: /api/v1/auth/max
+    role: MAX_student_account
+    request:
+      headers: {Content-Type: application/json}
+      body: {init_data: "${student_init_data}"}
+    expected: {status: 200, content_type: application/json, required_fields: [access_token, user.id, user.max_user_id, user.role]}
+
+  - id: select_student_role
+    method: POST
+    path: /api/v1/jury/role
+    role: MAX_student_account
+    request:
+      headers: {Authorization: "Bearer ${student_login_token}", Content-Type: application/json}
+      body: {token: "${jury_code_from_pdf}", role: student}
+    expected: {status: 200, content_type: application/json, required_fields: [access_token, user.role]}
+
+  - id: check_in_context
+    method: GET
+    path: /api/v1/check-in/context
+    role: student
+    precondition: Получить свежий QR после входа обоих аккаунтов; выполнить запрос до expires_at
+    request:
+      query: {token: "${qr_token}"}
+      headers: {Authorization: "Bearer ${student_token}"}
+    expected: {status: 200, content_type: application/json, required_fields: [session_id, status, expires_at]}
+
+  - id: check_in
+    method: POST
+    path: /api/v1/check-ins
+    role: student
+    precondition: Использовать тот же свежий QR до expires_at
+    request:
+      headers: {Authorization: "Bearer ${student_token}", Content-Type: application/json}
+      body: {qr_token: "${qr_token}"}
+    expected: {status: 200, content_type: application/json, required_fields: [status, checked_in_at, session_id]}
+
+  - id: duplicate_check_in
+    method: POST
+    path: /api/v1/check-ins
+    role: student
+    precondition: Повторить запрос сразу после успешной отметки, пока QR ещё действителен
+    request:
+      headers: {Authorization: "Bearer ${student_token}", Content-Type: application/json}
+      body: {qr_token: "${qr_token}"}
+    expected: {status: 409, content_type: application/json, error_code: ALREADY_CHECKED_IN}
+
+  - id: session_check_ins
+    method: GET
+    path: /api/v1/sessions/{session_id}/check-ins
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_token}"}
+    expected: {status: 200, content_type: application/json, required_fields: [session_id, present_count, student_count, items]}
+
+  - id: close_session
+    method: POST
+    path: /api/v1/sessions/{session_id}/close
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_token}"}
+    expected: {status: 200, content_type: application/json, required_fields: [id, status, closed_at]}
+
+  - id: group_history
+    method: GET
+    path: /api/v1/groups/{group_id}/sessions
+    role: teacher
+    request:
+      path_params: {group_id: "${group_id}"}
+      headers: {Authorization: "Bearer ${teacher_token}"}
+    expected: {status: 200, content_type: application/json, required_fields: [items]}
+
+  - id: manual_remove
+    method: POST
+    path: /api/v1/sessions/{session_id}/check-ins/manual
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_token}", Content-Type: application/json}
+      body: {student_id: "${student_id}", action: remove, reason: Проверка ручной правки}
+    expected: {status: 200, content_type: application/json, required_fields: [session_id, present_count, items]}
+
+  - id: manual_add
+    method: POST
+    path: /api/v1/sessions/{session_id}/check-ins/manual
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_token}", Content-Type: application/json}
+      body: {student_id: "${student_id}", action: add, reason: Восстановление тестовой записи}
+    expected: {status: 200, content_type: application/json, required_fields: [session_id, present_count, items]}
+
+  - id: session_audit
+    method: GET
+    path: /api/v1/sessions/{session_id}/audit
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_token}"}
+    expected: {status: 200, content_type: application/json, required_fields: [items]}
+
+  - id: export_csv
+    method: GET
+    path: /api/v1/sessions/{session_id}/export.csv
+    role: teacher
+    request:
+      path_params: {session_id: "${session_id}"}
+      headers: {Authorization: "Bearer ${teacher_token}"}
+    expected: {status: 200, content_type: text/csv, csv_columns: [student_id, max_user_id, display_name, status, checked_in_at, source]}

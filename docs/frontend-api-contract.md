@@ -8,6 +8,7 @@
 - `POST /auth/mock` с `{ "login": "...", "password": "..." }` — только dev/demo; публичная сборка frontend исключает этот вызов и тестовые аккаунты из bundle.
 - Оба endpoint возвращают `access_token`, `token_type: "bearer"` и пользователя с `id`, `max_user_id`, `display_name`, `role`.
 - Роль определяет backend. Access token frontend хранит только в памяти.
+- `POST /jury/role` с `{ "token": "код из PDF", "role": "teacher|student" }` доступен только после входа через MAX. Backend сверяет отдельный `JURY_ADMIN_TOKEN`, создаёт синтетическую группу `JURY_GROUP_NAME` при первом обращении, назначает роль и возвращает новый `access_token` и пользователя. Код передаётся в теле POST, не в URL; неверный код даёт `403`.
 
 ## Преподаватель
 
