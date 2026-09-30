@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     late_after_minutes: int = Field(default=30, ge=0)
     enable_mock_auth: bool = False
     demo_password: str = ""
+    jury_admin_token: str = ""
+    jury_group_name: str = "Проверка жюри"
     demo_teacher_max_user_id: str = "10001"
     bootstrap_teacher_max_user_id: str = ""
     bootstrap_teacher_name: str = "Тестовый преподаватель"
@@ -39,6 +41,10 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must contain at least 32 characters")
         if self.enable_mock_auth and not self.demo_password:
             raise ValueError("DEMO_PASSWORD is required when mock authentication is enabled")
+        if self.jury_admin_token and len(self.jury_admin_token) < 32:
+            raise ValueError("JURY_ADMIN_TOKEN must contain at least 32 characters")
+        if not self.jury_group_name.strip():
+            raise ValueError("JURY_GROUP_NAME must not be empty")
         if self.environment == "production" and self.enable_mock_auth:
             raise ValueError("Mock authentication cannot be enabled in production")
         if self.environment == "production" and self.jwt_secret.startswith("local-development-secret"):

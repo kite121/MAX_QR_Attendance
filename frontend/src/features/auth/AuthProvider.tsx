@@ -12,7 +12,7 @@ import {
 
 import { api } from '../../shared/api/api';
 import { isApiError } from '../../shared/api/ApiError';
-import type { User } from '../../shared/api/types';
+import type { User, UserRole } from '../../shared/api/types';
 import { getMaxInitData } from '../../shared/lib/maxBridge';
 
 type AuthStatus = 'loading' | 'anonymous' | 'authenticated';
@@ -23,6 +23,7 @@ interface AuthContextValue {
   status: AuthStatus;
   error: string | null;
   loginMock: (login: string, password: string) => Promise<void>;
+  setJuryRole: (token: string, role: UserRole) => Promise<void>;
   retryMaxAuth: () => Promise<void>;
   logout: () => void;
 }
@@ -91,6 +92,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [applyAuth],
   );
 
+  const setJuryRole = useCallback(
+    async (token: string, role: UserRole) => {
+      if (!accessToken) throw new Error('Сначала войдите через MAX');
+      const response = await api.setJuryRole(accessToken, token, role);
+      queryClient.clear();
+      applyAuth(response.access_token, response.user);
+    },
+    [accessToken, applyAuth, queryClient],
+  );
+
   const logout = useCallback(() => {
     authAttempt.current += 1;
     setAccessToken(null);
@@ -101,8 +112,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [queryClient]);
 
   const value = useMemo(
-    () => ({ user, accessToken, status, error, loginMock, retryMaxAuth, logout }),
-    [accessToken, error, loginMock, retryMaxAuth, logout, status, user],
+    () => ({
+      user,
+      accessToken,
+      status,
+      error,
+      loginMock,
+      setJuryRole,
+      retryMaxAuth,
+      logout,
+    }),
+    [accessToken, error, loginMock, setJuryRole, retryMaxAuth, logout, status, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

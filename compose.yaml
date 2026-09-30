@@ -27,6 +27,8 @@ services:
       BOOTSTRAP_GROUP_NAME: ${BOOTSTRAP_GROUP_NAME:-Тестовая группа}
       MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:-}
       MAX_BOT_NAME: ${MAX_BOT_NAME:-}
+      JURY_ADMIN_TOKEN: ${JURY_ADMIN_TOKEN:-}
+      JURY_GROUP_NAME: ${JURY_GROUP_NAME:-Проверка жюри}
       DEV_MINI_APP_URL: ${DEV_MINI_APP_URL:-http://localhost:8080/student/check-in}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
     depends_on:

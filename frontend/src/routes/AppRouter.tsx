@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../features/auth/AuthProvider';
 import { MaxLoginPage } from '../pages/MaxLoginPage';
+import { JuryAccessPage } from '../pages/JuryAccessPage';
 import { StudentCheckInPage } from '../pages/StudentCheckInPage';
 import { TeacherHomePage } from '../pages/TeacherHomePage';
 import { TeacherSessionPage } from '../pages/TeacherSessionPage';
@@ -51,6 +52,7 @@ export function AppRouter() {
 
   return (
     <Routes>
+      <Route path="/jury" element={<JuryAccessPage />} />
       <Route
         path="/teacher"
         element={

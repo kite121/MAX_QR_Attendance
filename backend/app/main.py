@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.auth import router as auth_router
+from app.jury import router as jury_router
 from app.attendance import router as attendance_router
 from app.p1 import router as p1_router
 from app.database import get_db
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
         return response
 
     app.include_router(auth_router)
+    app.include_router(jury_router)
     app.include_router(attendance_router)
     app.include_router(p1_router)
 

@@ -48,6 +48,7 @@ Frontend и backend P0/P1 реализованы. Локально их можн
 - [Архитектура и границы компонентов](docs/architecture.md)
 - [Контракт Frontend ↔ Backend](docs/frontend-api-contract.md)
 - [Проверки frontend и оставшаяся приёмка в MAX](docs/frontend-release-checks.md)
+- [Самостоятельная проверка жюри](docs/jury-access.md)
 - [Правила работы с ветками и pull request](CONTRIBUTING.md)
 - [Общий план проекта](output/pdf/plan_proekta_qr_attendance.pdf)
 - [Спринт 1](output/pdf/sprint_1_problem_ux_foundation.pdf) · [Спринт 2](output/pdf/sprint_2_vertical_mvp.pdf) · [Спринт 3](output/pdf/sprint_3_stability_security.pdf) · [Спринт 4](output/pdf/sprint_4_release_submission.pdf)

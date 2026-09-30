@@ -1,4 +1,5 @@
 import { Button } from '@maxhub/max-ui';
+import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../features/auth/AuthProvider';
 import { Brand } from './Brand';
@@ -18,6 +19,9 @@ export function AppHeader({ subtitle }: AppHeaderProps) {
       </div>
       {user ? (
         <div className="app-header__account">
+          <Link className="app-header__jury-link" to="/jury">
+            Для жюри
+          </Link>
           <div className="account-copy">
             <strong>{user.display_name}</strong>
             <span>{user.role === 'teacher' ? 'Преподаватель' : 'Студент'}</span>

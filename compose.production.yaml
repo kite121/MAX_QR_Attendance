@@ -27,6 +27,8 @@ services:
       ENABLE_MOCK_AUTH: "false"
       MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:?Set MAX_BOT_TOKEN in .env.production}
       MAX_BOT_NAME: ${MAX_BOT_NAME:?Set MAX_BOT_NAME in .env.production}
+      JURY_ADMIN_TOKEN: ${JURY_ADMIN_TOKEN:-}
+      JURY_GROUP_NAME: ${JURY_GROUP_NAME:-Проверка жюри}
       BOOTSTRAP_TEACHER_MAX_USER_ID: ${BOOTSTRAP_TEACHER_MAX_USER_ID:-}
       BOOTSTRAP_TEACHER_NAME: ${BOOTSTRAP_TEACHER_NAME:-Тестовый преподаватель}
       BOOTSTRAP_GROUP_NAME: ${BOOTSTRAP_GROUP_NAME:-Тестовая группа}

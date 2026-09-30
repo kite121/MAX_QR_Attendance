@@ -242,6 +242,50 @@ select {
   gap: 12px;
 }
 
+.app-header__jury-link {
+  color: #6844e7;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.jury-card {
+  width: min(100%, 560px);
+  margin: clamp(36px, 9vh, 96px) auto 0;
+  padding: clamp(24px, 6vw, 40px);
+  background: #fff;
+  border-radius: 28px;
+  box-shadow: 0 18px 60px rgb(36 31 57 / 8%);
+}
+
+.jury-card h1 {
+  margin: 8px 0 12px;
+  font-size: clamp(28px, 7vw, 38px);
+  line-height: 1.08;
+}
+
+.jury-card p {
+  color: #6b6f7a;
+  line-height: 1.5;
+}
+
+.jury-card__field {
+  display: grid;
+  gap: 8px;
+  margin: 24px 0 16px;
+  font-weight: 650;
+}
+
+.jury-card__actions {
+  display: grid;
+  gap: 10px;
+}
+
+.jury-card__hint {
+  margin: 18px 0;
+  font-size: 13px;
+}
+
 .account-copy {
   display: grid;
   text-align: right;

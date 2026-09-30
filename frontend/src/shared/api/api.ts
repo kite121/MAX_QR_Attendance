@@ -17,6 +17,7 @@ import type {
   QrTokenResponse,
   SessionsResponse,
   StudentsResponse,
+  UserRole,
 } from './types';
 
 // Compile-time gating lets the production bundle omit synthetic data entirely.
@@ -41,6 +42,14 @@ export const api = {
     return request<AuthResponse>('/auth/mock', {
       method: 'POST',
       body: { login, password },
+    });
+  },
+
+  setJuryRole(accessToken: string, token: string, role: UserRole): Promise<AuthResponse> {
+    return request<AuthResponse>('/jury/role', {
+      method: 'POST',
+      accessToken,
+      body: { token, role },
     });
   },
 
